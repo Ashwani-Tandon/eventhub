@@ -78,9 +78,10 @@ It contains cross-service technical setup, not domain behavior.
 
 ### `EventHub.BuildingBlocks`
 
-Small technical abstractions shared by the services. Step-20 will add the hand-written mediator,
-command/query contracts, pipeline behaviors, Result/Error types, entity base type, and current-user
-abstraction. Business concepts such as Event or Booking never belong here.
+Small technical abstractions shared by the services. It contains the hand-written mediator,
+command/query contracts, logging/validation/performance pipeline behaviors, Result/Error types,
+entity base type, and current-user abstraction. Business concepts such as Event or Booking never
+belong here.
 
 ### `EventHub.Gateway`
 

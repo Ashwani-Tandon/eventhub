@@ -51,3 +51,10 @@ The solution now separates each business service into Domain, Application, Infra
 Aspire starts SQL Server, three persistent service-owned databases, four APIs, and the YARP gateway as one dependency graph; `WaitFor` keeps dependent resources from racing SQL during startup.
 Secrets live in .NET user-secrets, while central package/build files make nullable analysis, analyzers, warnings-as-errors, and dependency versions consistent across every project.
 Break it on purpose: request `http://localhost:5100/catalog/internal/health`; the gateway should return 404 because Catalog's internal surface is deliberately not public.
+
+## Step-20 — Mediator, CQRS, and Result plumbing
+
+The hand-written mediator finds each command/query handler through DI and wraps it with logging, validation, and performance behaviors in a visible, deterministic order.
+Expected failures use `Result` and map centrally to consistent HTTP ProblemDetails; only unexpected exceptions reach the global handler, which logs the stack but returns a safe 500 body.
+Handler dispatch adapters are built during assembly registration, so the request path uses an explicit dictionary lookup instead of runtime reflection.
+Break it on purpose: send an empty message to `/identity/debug/echo`; expect 400 with a `Message` field error and no performance or handler entry in the Aspire logs.

@@ -15,3 +15,13 @@ indent_size = 2
 dotnet_sort_system_directives_first = true
 csharp_style_namespace_declarations = file_scoped:warning
 csharp_style_var_when_type_is_apparent = true:suggestion
+
+# These names are deliberate parts of the Result-pattern API required by SPEC CQ-06.
+[**/Results/Error.cs]
+dotnet_diagnostic.CA1716.severity = none
+
+[**/Results/IResult.cs]
+dotnet_diagnostic.CA1716.severity = none
+
+[**/Results/ResultOfT.cs]
+dotnet_diagnostic.CA1000.severity = none

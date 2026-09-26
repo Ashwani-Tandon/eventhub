@@ -43,8 +43,8 @@ number, which is why the board is not in numeric order — **execution order is 
 | **Step-1d** | Node LTS + Angular CLI. ⛔ No project app | `brew install node@24` · `npm i -g @angular/cli@22` · throwaway app | §3 | Step-1a | Node 24.x LTS · Angular CLI 22.x · :4200 test page · deleted | Completed (2026-09-25 — evidence: `node -v`, `ng version`, `ng serve`, HTTP 200 from :4200, owner browser confirmation, absent `/tmp/ngtest`; commit deferred with initial repository commit) |
 | **Step-1e** | Ollama + model + tool calling. ⛔ No agent code | 👤 open Ollama · pull model by RAM · curl tool-call test | §3, FR-AGT-06 | Step-1a | model listed · warm answer < 20 s · `tool_calls` returned · :11434 up | Completed (2026-09-25 — evidence: `ollama list`, warm `ollama run` 1.49 s, `/api/tags`, `/api/chat` returned `get_weather` for Delhi) |
 | **Step-2** | Solution skeleton in Clean Architecture layout; Aspire, SQL + 3 DBs, gateway. ⛔ No business code, no test projects | All projects of §15.5 with CA-01…04 references, Directory.Build/Packages.props, AppHost wiring, YARP :5100 | §4, §15.5, AR-01..09, CP-01, NFR-01/02 | Step-1b, Step-1c, Step-1d, Step-1e | builds with 0 warnings · dashboard all Running · 3 DBs survive a restart · 4 health checks via :5100 · no committed secrets | Completed (2026-09-26 — evidence: `dotnet build EventHub.sln`, Aspire dashboard, `gateway.http`, SQL query, restart persistence check) |
-| **Step-20** | BuildingBlocks: mediator, CQRS contracts, behaviors, Result; Result→HTTP mapping. ⛔ No service use cases, no architecture checks (Later) | `ISender`, `ICommand/IQuery` + handlers, 3 behaviors, `Result/Error`, `ToHttpResult()`, global exception handler, dev-only `/debug/echo` | §15.1–15.2, CQ-03/04/06 | Step-2 | echo logs behaviors in order · invalid echo → 400, handler not run · each ErrorType → right status · unexpected exception → 500 ProblemDetails | Not Started |
-| **Step-3** | Identity service (all 4 layers) + shared JWT validation. ⛔ No UI | `User` entity, 3 commands / 2 queries, JWT + hasher ports, `AddEventHubAuth()`, seed | §6, SD-02, §15.2, CP-10 | Step-20 | 5 users get tokens · claims correct · generic 401 · 403/200 on `/users` · `/auth/me` + 409 duplicate | Dependent (Step-20) |
+| **Step-20** | BuildingBlocks: mediator, CQRS contracts, behaviors, Result; Result→HTTP mapping. ⛔ No service use cases, no architecture checks (Later) | `ISender`, `ICommand/IQuery` + handlers, 3 behaviors, `Result/Error`, `ToHttpResult()`, global exception handler, dev-only `/debug/echo` | §15.1–15.2, CQ-03/04/06 | Step-2 | echo logs behaviors in order · invalid echo → 400, handler not run · each ErrorType → right status · unexpected exception → 500 ProblemDetails | Completed (2026-09-26 — evidence: `dotnet build EventHub.sln`, `Identity.Api/debug.http`, Aspire console logs) |
+| **Step-3** | Identity service (all 4 layers) + shared JWT validation. ⛔ No UI | `User` entity, 3 commands / 2 queries, JWT + hasher ports, `AddEventHubAuth()`, seed | §6, SD-02, §15.2, CP-10 | Step-20 | 5 users get tokens · claims correct · generic 401 · 403/200 on `/users` · `/auth/me` + 409 duplicate | Not Started |
 | **Step-4** | Catalog service: events CRUD, search, ownership, internal idempotent seat reservations. ⛔ No bookings, no rowVersion | `Event`, `SeatReservation`, 5 commands / 3 queries, `TryReserveAsync`, Booking-only internal endpoints, seed generator | §7 (FR-CAT-01..09), AR-09, SD-03, SD-05, CP-10 | Step-3 | filters + total · 403 attendee / other owner, 200 admin · public/internal authorization proven · 409 overbook · same reservationId twice → seats change once · 400 invalid | Dependent (Step-3) |
 | **Step-5** | Booking service: book with compensation, mine, retryable cancel, stats. ⛔ No UI, no idempotency key | `Booking` entity, cancellation release-pending state, 2 commands / 3 queries, `ICatalogClient`, `IPaymentGateway`, seed | §8 (FR-BKG-01..07, 09), SD-04, SD-05, CP-10 | Step-4 | seats −2 · 422 keeps seats · cancel restores / retry after Catalog outage / 403 other · stats scoped · 503 when Catalog down, My Bookings still works | Dependent (Step-4) |
 | **Step-16** | Idempotent booking creation + optimistic concurrency on event edits. ⛔ No retry policies, no UI | atomic `BookingRequest` claim with stable reservation/payment IDs; `RowVersion` on `Event`; migrations | FR-BKG-08, FR-CAT-10, RES-06/07, CP-10 | Step-5 | same key twice → one booking · parallel same key → same booking and one payment/reservation · mismatched replay → 409 · different keys → two · stale rowVersion → 409 | Dependent (Step-5) |
@@ -316,25 +316,25 @@ command/query contracts, the Result pattern and its mapping to HTTP. ⛔ No serv
 architecture checks (Later L-3).
 
 **Implementation**
-- [ ] `EventHub.BuildingBlocks/Messaging`: `ICommand`, `ICommand<TResponse>`, `IQuery<TResponse>`, `ICommandHandler<…>`, `IQueryHandler<…>`, `ISender` + `Sender` (resolves the handler from DI and runs the behavior chain), `IPipelineBehavior<TRequest,TResponse>`
-- [ ] `AddMediator(params Assembly[])` — registers handlers, validators and behaviors by assembly scanning
-- [ ] Behaviors in order: `LoggingBehavior` → `ValidationBehavior` (FluentValidation → `Error.Validation`, handler not called) → `PerformanceBehavior` (warn > 500 ms) — CQ-04
-- [ ] `Results/`: `Result`, `Result<T>`, `Error(Code, Message, ErrorType)`, `ErrorType` = Validation · NotFound · Conflict · Forbidden · Unauthorized · Unavailable · Unprocessable
-- [ ] `Domain/`: `Entity<TId>` base; `Security/ICurrentUser` holds only authenticated user id and role as shared technical request context
-- [ ] ServiceDefaults: `result.ToHttpResult()` mapping `ErrorType` → 400/404/409/403/401/503/422 ProblemDetails (validation errors as field dictionary); global `IExceptionHandler` → 500 ProblemDetails, logged
-- [ ] Proof endpoint (Development only) in `Identity.Api`: `POST /debug/echo` sends an `EchoCommand { message }` with a validator (required, ≤ 20 chars); `?fail=<ErrorType>` makes the handler return that error; `?throw=true` throws — lets you see the mediator working before any real use case exists
-- [ ] `debug.http` with the echo cases
-- [ ] DECISIONS: why a hand-written mediator (MediatR v13+ is commercial; learning), CQRS-lite, Result vs exceptions
+- [x] `EventHub.BuildingBlocks/Messaging`: `ICommand`, `ICommand<TResponse>`, `IQuery<TResponse>`, `ICommandHandler<…>`, `IQueryHandler<…>`, `ISender` + `Sender` (resolves the handler from DI and runs the behavior chain), `IPipelineBehavior<TRequest,TResponse>`
+- [x] `AddMediator(params Assembly[])` — registers handlers, validators and behaviors by assembly scanning
+- [x] Behaviors in order: `LoggingBehavior` → `ValidationBehavior` (FluentValidation → `Error.Validation`, handler not called) → `PerformanceBehavior` (warn > 500 ms) — CQ-04
+- [x] `Results/`: `Result`, `Result<T>`, `Error(Code, Message, ErrorType)`, `ErrorType` = Validation · NotFound · Conflict · Forbidden · Unauthorized · Unavailable · Unprocessable
+- [x] `Domain/`: `Entity<TId>` base; `Security/ICurrentUser` holds only authenticated user id and role as shared technical request context
+- [x] ServiceDefaults: `result.ToHttpResult()` mapping `ErrorType` → 400/404/409/403/401/503/422 ProblemDetails (validation errors as field dictionary); global `IExceptionHandler` → 500 ProblemDetails, logged
+- [x] Proof endpoint (Development only) in `Identity.Api`: `POST /debug/echo` sends an `EchoCommand { message }` with a validator (required, ≤ 20 chars); `?fail=<ErrorType>` makes the handler return that error; `?throw=true` throws — lets you see the mediator working before any real use case exists
+- [x] `debug.http` with the echo cases
+- [x] DECISIONS: why a hand-written mediator (MediatR v13+ is commercial; learning), CQRS-lite, Result vs exceptions
 
 **Dependencies.** Step-2.
 
 **Acceptance criteria**
-- [ ] Valid echo → 200, and the Aspire logs show Logging → Validation → Performance → handler, in that order
-- [ ] Invalid echo (empty message) → 400 ProblemDetails with the field error, and no handler log line
-- [ ] `?fail=NotFound|Conflict|Forbidden|Unavailable|Unprocessable` → 404 / 409 / 403 / 503 / 422 ProblemDetails
-- [ ] `?throw=true` → 500 ProblemDetails with no stack trace in the response, and the exception in the logs
+- [x] Valid echo → 200, and the Aspire logs show Logging → Validation → Performance → handler, in that order
+- [x] Invalid echo (empty message) → 400 ProblemDetails with the field error, and no handler log line
+- [x] `?fail=NotFound|Conflict|Forbidden|Unavailable|Unprocessable` → 404 / 409 / 403 / 503 / 422 ProblemDetails
+- [x] `?throw=true` → 500 ProblemDetails with no stack trace in the response, and the exception in the logs
 
-**Status.** Not Started
+**Status.** Completed (2026-09-26 — evidence: `dotnet build EventHub.sln`, `src/Services/Identity/Identity.Api/debug.http`, Aspire console logs)
 
 ---
 
@@ -360,7 +360,7 @@ four layers with commands and queries. ⛔ No UI, no refresh tokens.
 - [ ] `/users` → 403 with attendee token, 200 with admin token (FR-ID-05)
 - [ ] `/auth/me` → 401 without token, correct user with it; duplicate register → 409 (FR-ID-01/04)
 
-**Status.** Dependent (Step-20)
+**Status.** Not Started
 
 ---
 

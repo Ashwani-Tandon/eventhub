@@ -1,0 +1,47 @@
+using EventHub.BuildingBlocks.Results;
+using Microsoft.Extensions.Logging;
+
+namespace EventHub.BuildingBlocks.Messaging;
+
+public sealed class LoggingBehavior<TRequest, TResponse>(
+    ILogger<LoggingBehavior<TRequest, TResponse>> logger,
+    TimeProvider timeProvider)
+    : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : IRequest<TResponse>
+    where TResponse : IResult<TResponse>
+{
+    private static readonly Action<ILogger, string, Exception?> LogPipelineEntered =
+        LoggerMessage.Define<string>(
+            LogLevel.Information,
+            new EventId(1000, nameof(LogPipelineEntered)),
+            "Mediator pipeline: Logging entered for {RequestName}");
+
+    private static readonly Action<ILogger, string, double, string, Exception?> LogRequestCompleted =
+        LoggerMessage.Define<string, double, string>(
+            LogLevel.Information,
+            new EventId(1001, nameof(LogRequestCompleted)),
+            "Mediator request {RequestName} completed in {ElapsedMilliseconds} ms with {Outcome}");
+
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerContinuation<TResponse> continuation,
+        CancellationToken cancellationToken)
+    {
+        var requestName = typeof(TRequest).Name;
+        var startedAt = timeProvider.GetTimestamp();
+
+        LogPipelineEntered(logger, requestName, null);
+
+        var response = await continuation(cancellationToken);
+        var elapsed = timeProvider.GetElapsedTime(startedAt);
+
+        LogRequestCompleted(
+            logger,
+            requestName,
+            elapsed.TotalMilliseconds,
+            response.IsSuccess ? "Success" : "Failure",
+            null);
+
+        return response;
+    }
+}

@@ -1,0 +1,65 @@
+@gateway = http://localhost:5100
+
+### Valid: 200 with the echoed message
+POST {{gateway}}/identity/debug/echo
+Content-Type: application/json
+
+{
+  "message": "hello mediator"
+}
+
+### Invalid: 400 field errors; handler must not run
+POST {{gateway}}/identity/debug/echo
+Content-Type: application/json
+
+{
+  "message": ""
+}
+
+### Result-to-HTTP mappings
+POST {{gateway}}/identity/debug/echo?fail=Validation
+Content-Type: application/json
+
+{ "message": "mapping" }
+
+###
+POST {{gateway}}/identity/debug/echo?fail=NotFound
+Content-Type: application/json
+
+{ "message": "mapping" }
+
+###
+POST {{gateway}}/identity/debug/echo?fail=Conflict
+Content-Type: application/json
+
+{ "message": "mapping" }
+
+###
+POST {{gateway}}/identity/debug/echo?fail=Forbidden
+Content-Type: application/json
+
+{ "message": "mapping" }
+
+###
+POST {{gateway}}/identity/debug/echo?fail=Unauthorized
+Content-Type: application/json
+
+{ "message": "mapping" }
+
+###
+POST {{gateway}}/identity/debug/echo?fail=Unavailable
+Content-Type: application/json
+
+{ "message": "mapping" }
+
+###
+POST {{gateway}}/identity/debug/echo?fail=Unprocessable
+Content-Type: application/json
+
+{ "message": "mapping" }
+
+### Unexpected exception: 500 without a stack trace
+POST {{gateway}}/identity/debug/echo?throw=true
+Content-Type: application/json
+
+{ "message": "explode" }
