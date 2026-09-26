@@ -45,8 +45,8 @@ number, which is why the board is not in numeric order — **execution order is 
 | **Step-2** | Solution skeleton in Clean Architecture layout; Aspire, SQL + 3 DBs, gateway. ⛔ No business code, no test projects | All projects of §15.5 with CA-01…04 references, Directory.Build/Packages.props, AppHost wiring, YARP :5100 | §4, §15.5, AR-01..09, CP-01, NFR-01/02 | Step-1b, Step-1c, Step-1d, Step-1e | builds with 0 warnings · dashboard all Running · 3 DBs survive a restart · 4 health checks via :5100 · no committed secrets | Completed (2026-09-26 — evidence: `dotnet build EventHub.sln`, Aspire dashboard, `gateway.http`, SQL query, restart persistence check) |
 | **Step-20** | BuildingBlocks: mediator, CQRS contracts, behaviors, Result; Result→HTTP mapping. ⛔ No service use cases, no architecture checks (Later) | `ISender`, `ICommand/IQuery` + handlers, 3 behaviors, `Result/Error`, `ToHttpResult()`, global exception handler, dev-only `/debug/echo` | §15.1–15.2, CQ-03/04/06 | Step-2 | echo logs behaviors in order · invalid echo → 400, handler not run · each ErrorType → right status · unexpected exception → 500 ProblemDetails | Completed (2026-09-26 — evidence: `dotnet build EventHub.sln`, `Identity.Api/debug.http`, Aspire console logs) |
 | **Step-3** | Identity service (all 4 layers) + shared JWT validation. ⛔ No UI | `User` entity, 3 commands / 2 queries, JWT + hasher ports, `AddEventHubAuth()`, seed | §6, SD-02, §15.2, CP-10 | Step-20 | 5 users get tokens · claims correct · generic 401 · 403/200 on `/users` · `/auth/me` + 409 duplicate | Completed (2026-09-26 — evidence: `docs/STEP-3-EVIDENCE.md`, `identity.http`; build 0 warnings) |
-| **Step-4** | Catalog service: events CRUD, search, ownership, internal idempotent seat reservations. ⛔ No bookings, no rowVersion | `Event`, `SeatReservation`, 5 commands / 3 queries, `TryReserveAsync`, Booking-only internal endpoints, seed generator | §7 (FR-CAT-01..09), AR-09, SD-03, SD-05, CP-10 | Step-3 | filters + total · 403 attendee / other owner, 200 admin · public/internal authorization proven · 409 overbook · same reservationId twice → seats change once · 400 invalid | Not Started |
-| **Step-5** | Booking service: book with compensation, mine, retryable cancel, stats. ⛔ No UI, no idempotency key | `Booking` entity, cancellation release-pending state, 2 commands / 3 queries, `ICatalogClient`, `IPaymentGateway`, seed | §8 (FR-BKG-01..07, 09), SD-04, SD-05, CP-10 | Step-4 | seats −2 · 422 keeps seats · cancel restores / retry after Catalog outage / 403 other · stats scoped · 503 when Catalog down, My Bookings still works | Dependent (Step-4) |
+| **Step-4** | Catalog service: events CRUD, search, ownership, internal idempotent seat reservations. ⛔ No bookings, no rowVersion | `Event`, `SeatReservation`, 5 commands / 3 queries, `TryReserveAsync`, Booking-only internal endpoints, seed generator | §7 (FR-CAT-01..09), AR-09, SD-03, SD-05, CP-10 | Step-3 | filters + total · 403 attendee / other owner, 200 admin · public/internal authorization proven · 409 overbook · same reservationId twice → seats change once · 400 invalid | Completed (2026-09-26 — evidence: `docs/STEP-4-EVIDENCE.md`, `Catalog.Api/catalog.http`; build 0 warnings) |
+| **Step-5** | Booking service: book with compensation, mine, retryable cancel, stats. ⛔ No UI, no idempotency key | `Booking` entity, cancellation release-pending state, 2 commands / 3 queries, `ICatalogClient`, `IPaymentGateway`, seed | §8 (FR-BKG-01..07, 09), SD-04, SD-05, CP-10 | Step-4 | seats −2 · 422 keeps seats · cancel restores / retry after Catalog outage / 403 other · stats scoped · 503 when Catalog down, My Bookings still works | Not Started |
 | **Step-16** | Idempotent booking creation + optimistic concurrency on event edits. ⛔ No retry policies, no UI | atomic `BookingRequest` claim with stable reservation/payment IDs; `RowVersion` on `Event`; migrations | FR-BKG-08, FR-CAT-10, RES-06/07, CP-10 | Step-5 | same key twice → one booking · parallel same key → same booking and one payment/reservation · mismatched replay → 409 · different keys → two · stale rowVersion → 409 | Dependent (Step-5) |
 | **Step-17** | Resilience pipeline for service-to-service calls, DB retry. ⛔ No chaos toggle (Later), no gateway limits, no UI | `AddEventHubResilience()` in ServiceDefaults, safe-method retry rule, breaker → 503, EF execution strategy | RES-01/02/03/04/05/13, FR-BKG-07 | Step-5 | Catalog stopped → retries in trace, then 503 · repeated failures → circuit opens, fast 503 · restart → recovers after break · breaker transitions logged | Dependent (Step-5) |
 | ~~**Step-18**~~ | ~~Gateway rate limiting, timeouts, aggregated health~~ — **retired by the owner; moved to "Later — for understanding" (L-2)**. The `/agent` route timeout moved into Step-9. | — | — | — | — | Retired |
@@ -57,7 +57,7 @@ number, which is why the board is not in numeric order — **execution order is 
 | **Step-8b** | Dashboard: KPI tiles + 3 charts. ⛔ No admin screens | ngx-echarts, `/bookings/stats` + `/events/mine` | FR-UI-10 | Step-5, Step-6 | 3 charts from seed · organizer2 ≠ organizer, admin = all · refresh reflects new booking · resizes | Dependent (Step-5, Step-6) |
 | **Step-8c** | Admin: users + roles, all bookings. ⛔ No agent | users table + role dropdown, bookings table + filter | FR-UI-11, FR-ID-05 | Step-3, Step-5, Step-6 | promote attendee2 → organizer after re-login · old rights before re-login · non-admin blocked | Dependent (Step-3, Step-5, Step-6) |
 | **Step-19** | UI resilience: GET retry, booking idempotency key, per-panel degradation, 429/409 messages. ⛔ No new features | retry interceptor (GET only), `crypto.randomUUID()` key, `PanelState` component | FR-UI-13/14/15, RES-12 | Step-7b, Step-8a, Step-8b, Step-16 | Booking down → Events work, dashboard panels show Retry · Catalog down → My Bookings works · double-click → one booking · GET retried, POST not · stale edit → reload message | Dependent (Step-7b, Step-8a, Step-8b, Step-16) |
-| **Step-14** | The agent loop by hand — raw Ollama API, hand-written tool schemas, manual loop — built by the coding agent as study material. ⛔ No M.E.AI, no write tools, not part of the product | console app `Agent.Playground`, 2 tools, prints every round, heavily commented, `WALKTHROUGH.md` | §9.1, glossary "ReAct" | Step-1e, Step-4 | round 1 shows `tool_calls` · round 2 answer uses real events · tool error explained by model · loop guard stops at 5 | Dependent (Step-1e, Step-4) |
+| **Step-14** | The agent loop by hand — raw Ollama API, hand-written tool schemas, manual loop — built by the coding agent as study material. ⛔ No M.E.AI, no write tools, not part of the product | console app `Agent.Playground`, 2 tools, prints every round, heavily commented, `WALKTHROUGH.md` | §9.1, glossary "ReAct" | Step-1e, Step-4 | round 1 shows `tool_calls` · round 2 answer uses real events · tool error explained by model · loop guard stops at 5 | Not Started |
 | **Step-9** | Agent service (3 layers), read-only tools, timeout + bulkhead. ⛔ Cannot book/cancel/stats | M.E.AI + OllamaSharp, `SendChatMessage` command, 3 tools, ports `ICatalogApi`/`IBookingApi`, limiter, `/agent` route timeout 120 s | §9, FR-AGT-01/02/04/05/06/07, CA-07, NFR-04 | Step-1e, Step-5, Step-17 | real events + tool calls in logs · nothing invented, off-topic declined · warm reply < 30 s · Ollama down → 503, overload → 429 | Dependent (Step-1e, Step-5, Step-17) |
 | **Step-10** | Agent action tools + permissions + idempotent booking tool. ⛔ No UI | `BookTickets` (with key), `CancelBooking`, `GetSalesStats`, confirmation rule | FR-AGT-03/04/08 | Step-9, Step-16 | confirms then books · attendee stats refused (403 in logs) · organizer stats match · cancel by name | Dependent (Step-9, Step-16) |
 | **Step-11** | Chat widget. ⛔ No new agent features | `features/chat`, floating panel, session history, indicator, clear on logout | FR-UI-12 | Step-6, Step-9 | multi-turn memory · hidden logged out · empty for next user · slow reply shows indicator | Dependent (Step-6, Step-9) |
@@ -375,15 +375,15 @@ four layers with commands and queries. ⛔ No UI, no refresh tokens.
 ⛔ No bookings or payments; no `rowVersion` (Step-16).
 
 **Implementation**
-- [ ] **Domain:** `Event` (`Create`, `Update` — capacity ≥ seats booked, `CanBeDeleted`), `SeatReservation` (`Hold`, `Release`), `Categories` constants, `EventErrors`
-- [ ] **Application:** commands `CreateEvent`, `UpdateEvent`, `DeleteEvent`, `ReserveSeats`, `ReleaseReservation`; queries `SearchEvents`, `GetEventById`, `GetMyEvents`; validators per FR-CAT-06; ports `IEventRepository` (incl. `TryReserveAsync`), `IReservationRepository`, `IEventQueries`, `IUnitOfWork`; use shared BuildingBlocks `ICurrentUser`. Infrastructure implements `IEventQueries` with `AsNoTracking()` DTO projections (CQ-02).
-- [ ] Ownership rule FR-CAT-04 in the Update/Delete handlers (owner `sub` or Admin → else `Error.Forbidden`)
-- [ ] **Infrastructure:** `CatalogDbContext`, repositories; `TryReserveAsync` = one transaction: check existing reservation id and matching user/event/quantity, conditional `ExecuteUpdateAsync` on seats, insert `Held` reservation — inside the EF execution strategy (RES-05). Catch a concurrent reservation-PK violation outside the rolled-back transaction, load the winner, and return it only if its inputs match.
-- [ ] `EventHub.SeedData`: deterministic generator (fixed seed) for SD-03 events **and** SD-04 bookings; Catalog seeds events with `SeatsBooked` = sum of confirmed quantities, plus matching `Held` reservations (SD-05)
-- [ ] **Api:** public endpoints of SPEC §7.3 plus `/internal/*`; the internal group requires a valid user JWT and constant-time validation of `X-EventHub-Service`. YARP has no route to this group.
-- [ ] Create and commit the initial Catalog EF migration; call `MigrateAsync()` before seeding (CP-10)
-- [ ] DECISIONS: why internal seat endpoints require both the user token and a Booking credential, and why gateway exclusion alone is insufficient
-- [ ] `catalog.http`
+- [x] **Domain:** `Event` (`Create`, `Update` — capacity ≥ seats booked, `CanBeDeleted`), `SeatReservation` (`Hold`, `Release`), `Categories` constants, `EventErrors`
+- [x] **Application:** commands `CreateEvent`, `UpdateEvent`, `DeleteEvent`, `ReserveSeats`, `ReleaseReservation`; queries `SearchEvents`, `GetEventById`, `GetMyEvents`; validators per FR-CAT-06; ports `IEventRepository` (incl. `TryReserveAsync`), `IReservationRepository`, `IEventQueries`, `IUnitOfWork`; use shared BuildingBlocks `ICurrentUser`. Infrastructure implements `IEventQueries` with `AsNoTracking()` DTO projections (CQ-02).
+- [x] Ownership rule FR-CAT-04 in the Update/Delete handlers (owner `sub` or Admin → else `Error.Forbidden`)
+- [x] **Infrastructure:** `CatalogDbContext`, repositories; `TryReserveAsync` = one transaction: check existing reservation id and matching user/event/quantity, conditional `ExecuteUpdateAsync` on seats, insert `Held` reservation — inside the EF execution strategy (RES-05). Catch a concurrent reservation-PK violation outside the rolled-back transaction, load the winner, and return it only if its inputs match.
+- [x] `EventHub.SeedData`: deterministic generator (fixed seed) for SD-03 events **and** SD-04 bookings; Catalog seeds events with `SeatsBooked` = sum of confirmed quantities, plus matching `Held` reservations (SD-05)
+- [x] **Api:** public endpoints of SPEC §7.3 plus `/internal/*`; the internal group requires a valid user JWT and constant-time validation of `X-EventHub-Service`. YARP has no route to this group.
+- [x] Create and commit the initial Catalog EF migration; call `MigrateAsync()` before seeding (CP-10)
+- [x] DECISIONS: why internal seat endpoints require both the user token and a Booking credential, and why gateway exclusion alone is insufficient
+- [x] `catalog.http`
 
 **Trap.** Seeded event IDs must match the IDs the booking seed refers to — insert in generator order
 into an empty table and assert the IDs after seeding; fail loudly if they differ.
@@ -391,15 +391,15 @@ into an empty table and assert the IDs after seeding; fail loudly if they differ
 **Dependencies.** Step-3.
 
 **Acceptance criteria**
-- [ ] `search`, `category`, `maxPrice` change results; paging returns the correct `total` (FR-CAT-01)
-- [ ] Attendee `POST /events` → 403; organizer2 edits organizer's event → 403; admin → 200 (FR-CAT-03/04)
-- [ ] Reserve more than `seatsLeft` → 409 and seats unchanged (FR-CAT-07)
-- [ ] Same `reservationId` reserved twice → seats change once; released twice → returned once (FR-CAT-07/08)
-- [ ] Two parallel reserves with the same `reservationId` → one seat change; a replay with changed user/event/quantity → 409/403 as applicable
-- [ ] Calling `/catalog/internal/...` through the gateway → 404; calling the service directly without the Booking credential → 403
-- [ ] Invalid input (negative price, past date) → 400 with field messages (FR-CAT-06)
+- [x] `search`, `category`, `maxPrice` change results; paging returns the correct `total` (FR-CAT-01)
+- [x] Attendee `POST /events` → 403; organizer2 edits organizer's event → 403; admin → 200 (FR-CAT-03/04)
+- [x] Reserve more than `seatsLeft` → 409 and seats unchanged (FR-CAT-07)
+- [x] Same `reservationId` reserved twice → seats change once; released twice → returned once (FR-CAT-07/08)
+- [x] Two parallel reserves with the same `reservationId` → one seat change; a replay with changed user/event/quantity → 409/403 as applicable
+- [x] Calling `/catalog/internal/...` through the gateway → 404; calling the service directly without the Booking credential → 403
+- [x] Invalid input (negative price, past date) → 400 with field messages (FR-CAT-06)
 
-**Status.** Not Started
+**Status.** Completed (2026-09-26 — evidence: `docs/STEP-4-EVIDENCE.md`, `src/Services/Catalog/Catalog.Api/catalog.http`; build 0 warnings)
 
 ---
 
@@ -428,7 +428,7 @@ into an empty table and assert the IDs after seeding; fail loudly if they differ
 - [ ] Stats: organizer2 sees only their events; attendee → 403 (FR-BKG-06)
 - [ ] Catalog stopped → `POST /bookings` 503 while `GET /bookings/mine` still 200 (FR-BKG-07/09)
 
-**Status.** Dependent (Step-4)
+**Status.** Not Started
 
 ---
 
@@ -688,7 +688,7 @@ repeat. Built by the coding agent; the owner studies it afterwards.
 - [ ] Forcing a looping prompt stops at round 5 with a clear message
 - [ ] `WALKTHROUGH.md` exists and contains a real annotated run (not an invented one)
 
-**Status.** Dependent (Step-1e, Step-4)
+**Status.** Not Started
 
 ---
 

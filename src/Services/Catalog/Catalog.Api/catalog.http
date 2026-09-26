@@ -1,0 +1,92 @@
+# Exercises Catalog through the gateway and its protected internal service surface directly.
+# Run the Identity logins first; set catalogDirectUrl and bookingServiceKey from Aspire/user-secrets locally.
+@gateway = http://localhost:5100
+@catalog = {{gateway}}/catalog
+@identity = {{gateway}}/identity
+@password = Demo@123
+@catalogDirectUrl = http://localhost:0000
+@bookingServiceKey = replace-from-user-secrets
+@reservationId = 11111111-1111-1111-1111-111111111111
+
+### organizer login
+# @name organizerLogin
+POST {{identity}}/auth/login
+Content-Type: application/json
+
+{"email":"organizer@demo.com","password":"{{password}}"}
+
+### organizer2 login
+# @name organizer2Login
+POST {{identity}}/auth/login
+Content-Type: application/json
+
+{"email":"organizer2@demo.com","password":"{{password}}"}
+
+### attendee login
+# @name attendeeLogin
+POST {{identity}}/auth/login
+Content-Type: application/json
+
+{"email":"attendee@demo.com","password":"{{password}}"}
+
+### admin login
+# @name adminLogin
+POST {{identity}}/auth/login
+Content-Type: application/json
+
+{"email":"admin@demo.com","password":"{{password}}"}
+
+### public upcoming events with total and default paging
+GET {{catalog}}/events
+
+### filters and explicit paging
+GET {{catalog}}/events?search=AI&category=Tech&city=Delhi&maxPrice=3000&page=1&pageSize=5
+
+### one event including seatsLeft
+GET {{catalog}}/events/1
+
+### attendee create → 403
+POST {{catalog}}/events
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"title":"Forbidden event","description":"","category":"Tech","venue":"Lab","city":"Delhi","startsAt":"2027-12-01T10:00:00Z","price":100,"capacity":20}
+
+### invalid event → 400 with field messages
+POST {{catalog}}/events
+Authorization: Bearer {{organizerLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"title":"","description":"","category":"Unknown","venue":"Lab","city":"Delhi","startsAt":"2020-01-01T10:00:00Z","price":-1,"capacity":0}
+
+### owner events, including past ones
+GET {{catalog}}/events/mine
+Authorization: Bearer {{organizerLogin.response.body.$.accessToken}}
+
+### internal path through gateway → 404
+POST {{catalog}}/internal/events/2/reservations
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+X-EventHub-Service: {{bookingServiceKey}}
+Content-Type: application/json
+
+{"reservationId":"{{reservationId}}","quantity":2}
+
+### direct internal call without Booking credential → 403
+POST {{catalogDirectUrl}}/internal/events/2/reservations
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"reservationId":"{{reservationId}}","quantity":2}
+
+### reserve directly; repeat unchanged for idempotent 200
+POST {{catalogDirectUrl}}/internal/events/2/reservations
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+X-EventHub-Service: {{bookingServiceKey}}
+Content-Type: application/json
+
+{"reservationId":"{{reservationId}}","quantity":2}
+
+### release directly; repeat for idempotent 200
+POST {{catalogDirectUrl}}/internal/reservations/{{reservationId}}/release
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+X-EventHub-Service: {{bookingServiceKey}}

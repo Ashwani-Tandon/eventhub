@@ -66,3 +66,11 @@ ASP.NET Core PasswordHasher stores salted hashes; JWT signs readable profile cla
 Issued tokens are snapshots: promoting attendee2 changed a fresh login to Organizer while the old token stayed Attendee; the demo role was then restored.
 The committed EF migration runs before development seeding; restarting preserved the registered user and left six users and one migration, proving persistence and seed idempotency.
 Break it on purpose: use an attendee token on /identity/users or alter a token signature; expect 403 for insufficient role and 401 for an invalid token.
+
+## Step-4 — Catalog and atomic seat reservations
+
+Catalog now separates event invariants, CQRS handlers, untracked read projections, and EF adapters so each layer has one visible responsibility.
+A conditional SQL update and reservation row share one transaction, making capacity enforcement atomic while the reservation GUID makes safe retries idempotent—even during a parallel duplicate race.
+Internal seat routes require both the user's JWT and Booking's constant-time checked credential; excluding them from YARP reduces exposure but is not itself authentication.
+The shared fixed-seed generator creates 40 events and 300 future Booking records, so Catalog's booked-seat totals and later Booking data start from the same source.
+Break it on purpose: reserve one seat beyond sold-out event 1; expect 409 and verify `seatsBooked` remains 20.

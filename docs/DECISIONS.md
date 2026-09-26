@@ -1,5 +1,13 @@
 # EventHub — Architecture Decisions
 
+## 2026-09-26 — Require two identities for internal seat operations
+
+**Decision.** Catalog's internal reserve and release endpoints require both the calling user's signed JWT and a constant-time checked `X-EventHub-Service` credential known only to Booking. YARP exposes only Catalog's `/events` and `/health` routes, never `/internal`.
+
+**Why.** The JWT preserves the real user's authorization and audit identity, while the second credential proves that the immediate caller is the Booking service. Gateway exclusion reduces exposure but cannot protect direct service-discovery or local network access by itself.
+
+**Trade-off.** Booking must securely receive and send another secret, and Catalog must rotate it consistently. This is intentionally simpler than workload identity for the local learning environment.
+
 ## 2026-09-26 — Read the current profile from signed token claims
 
 **Decision.** Keep the id/role `ICurrentUser` port narrow and add a shared technical `ICurrentUserProfile` port for email/name claims. Identity's current-user query reads the authenticated token, not a fresh database profile.
