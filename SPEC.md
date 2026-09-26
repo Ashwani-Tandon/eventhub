@@ -288,7 +288,7 @@ The dev server proxies `/api/*` to `http://localhost:5100` (prefix removed), so 
 
 | ID | Requirement |
 |---|---|
-| NFR-01 | One command starts the backend: `dotnet run --project src/EventHub.AppHost`. Angular: `npm start` in `web/`. |
+| NFR-01 | One command starts the backend: `dotnet run --project src/Aspire/EventHub.AppHost`. Angular: `npm start` in `web/`. |
 | NFR-02 | Fixed ports: Gateway 5100 (not 5000 — macOS AirPlay), Angular 4200, Ollama 11434. Others assigned by Aspire. |
 | NFR-03 | API responses < 500 ms locally (excluding the agent). |
 | NFR-04 | Agent reply < 30 s for a warm model. Gateway timeout for `/agent` is 120 s. |

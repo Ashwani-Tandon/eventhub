@@ -42,3 +42,10 @@ Ollama 0.32.15 was already installed; opening it once completed local-only onboa
 The 8 GB machine uses `qwen2.5:3b`; its warm one-sentence response took 1.49 seconds, well below the 20-second limit.
 The model returned a structured `get_weather` tool call with `city: "Delhi"`, proving that it can drive the agent loop instead of merely generating text.
 Break it on purpose: before Ollama was running, `/api/tags` could not connect; after local startup, it returned the model inventory and advertised the `tools` capability.
+
+## Step-2 — Solution skeleton
+
+The solution now separates each business service into Domain, Application, Infrastructure, and API projects; project references make dependencies point inward and prevent accidental database or framework coupling.
+Aspire starts SQL Server, three persistent service-owned databases, four APIs, and the YARP gateway as one dependency graph; `WaitFor` keeps dependent resources from racing SQL during startup.
+Secrets live in .NET user-secrets, while central package/build files make nullable analysis, analyzers, warnings-as-errors, and dependency versions consistent across every project.
+Break it on purpose: request `http://localhost:5100/catalog/internal/health`; the gateway should return 404 because Catalog's internal surface is deliberately not public.

@@ -1,0 +1,19 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+
+# Local tooling and secrets
+.idea/
+.vscode/
+*.userSecrets.json
+
+# macOS
+.DS_Store

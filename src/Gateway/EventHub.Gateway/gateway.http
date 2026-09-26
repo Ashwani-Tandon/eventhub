@@ -1,0 +1,24 @@
+@gateway = http://localhost:5100
+
+GET {{gateway}}/identity/health
+Accept: text/plain
+
+###
+
+GET {{gateway}}/catalog/health
+Accept: text/plain
+
+###
+
+GET {{gateway}}/booking/health
+Accept: text/plain
+
+###
+
+GET {{gateway}}/agent/health
+Accept: text/plain
+
+### Internal Catalog endpoints must not be exposed by the gateway
+
+GET {{gateway}}/catalog/internal/health
+Accept: text/plain

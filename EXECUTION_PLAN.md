@@ -42,8 +42,8 @@ number, which is why the board is not in numeric order — **execution order is 
 | **Step-1c** | Docker Desktop + SQL Server on M1. ⛔ No project DB | 👤 Rosetta on, ≥ 4 GB · test-run SQL image · remove | §3 | Step-1a | hello-world · SQL up > 1 min · `SELECT @@VERSION` · test container gone | Completed (2026-09-24 — evidence: `docker version`, `docker info`, `docker run --rm hello-world`, `docker ps`, `SELECT @@VERSION`, empty `docker ps -a --filter name=sqltest`; commit deferred with initial repository commit) |
 | **Step-1d** | Node LTS + Angular CLI. ⛔ No project app | `brew install node@24` · `npm i -g @angular/cli@22` · throwaway app | §3 | Step-1a | Node 24.x LTS · Angular CLI 22.x · :4200 test page · deleted | Completed (2026-09-25 — evidence: `node -v`, `ng version`, `ng serve`, HTTP 200 from :4200, owner browser confirmation, absent `/tmp/ngtest`; commit deferred with initial repository commit) |
 | **Step-1e** | Ollama + model + tool calling. ⛔ No agent code | 👤 open Ollama · pull model by RAM · curl tool-call test | §3, FR-AGT-06 | Step-1a | model listed · warm answer < 20 s · `tool_calls` returned · :11434 up | Completed (2026-09-25 — evidence: `ollama list`, warm `ollama run` 1.49 s, `/api/tags`, `/api/chat` returned `get_weather` for Delhi) |
-| **Step-2** | Solution skeleton in Clean Architecture layout; Aspire, SQL + 3 DBs, gateway. ⛔ No business code, no test projects | All projects of §15.5 with CA-01…04 references, Directory.Build/Packages.props, AppHost wiring, YARP :5100 | §4, §15.5, AR-01..09, CP-01, NFR-01/02 | Step-1b, Step-1c, Step-1d, Step-1e | builds with 0 warnings · dashboard all Running · 3 DBs survive a restart · 4 health checks via :5100 · no committed secrets | Not Started |
-| **Step-20** | BuildingBlocks: mediator, CQRS contracts, behaviors, Result; Result→HTTP mapping. ⛔ No service use cases, no architecture checks (Later) | `ISender`, `ICommand/IQuery` + handlers, 3 behaviors, `Result/Error`, `ToHttpResult()`, global exception handler, dev-only `/debug/echo` | §15.1–15.2, CQ-03/04/06 | Step-2 | echo logs behaviors in order · invalid echo → 400, handler not run · each ErrorType → right status · unexpected exception → 500 ProblemDetails | Dependent (Step-2) |
+| **Step-2** | Solution skeleton in Clean Architecture layout; Aspire, SQL + 3 DBs, gateway. ⛔ No business code, no test projects | All projects of §15.5 with CA-01…04 references, Directory.Build/Packages.props, AppHost wiring, YARP :5100 | §4, §15.5, AR-01..09, CP-01, NFR-01/02 | Step-1b, Step-1c, Step-1d, Step-1e | builds with 0 warnings · dashboard all Running · 3 DBs survive a restart · 4 health checks via :5100 · no committed secrets | Completed (2026-09-26 — evidence: `dotnet build EventHub.sln`, Aspire dashboard, `gateway.http`, SQL query, restart persistence check) |
+| **Step-20** | BuildingBlocks: mediator, CQRS contracts, behaviors, Result; Result→HTTP mapping. ⛔ No service use cases, no architecture checks (Later) | `ISender`, `ICommand/IQuery` + handlers, 3 behaviors, `Result/Error`, `ToHttpResult()`, global exception handler, dev-only `/debug/echo` | §15.1–15.2, CQ-03/04/06 | Step-2 | echo logs behaviors in order · invalid echo → 400, handler not run · each ErrorType → right status · unexpected exception → 500 ProblemDetails | Not Started |
 | **Step-3** | Identity service (all 4 layers) + shared JWT validation. ⛔ No UI | `User` entity, 3 commands / 2 queries, JWT + hasher ports, `AddEventHubAuth()`, seed | §6, SD-02, §15.2, CP-10 | Step-20 | 5 users get tokens · claims correct · generic 401 · 403/200 on `/users` · `/auth/me` + 409 duplicate | Dependent (Step-20) |
 | **Step-4** | Catalog service: events CRUD, search, ownership, internal idempotent seat reservations. ⛔ No bookings, no rowVersion | `Event`, `SeatReservation`, 5 commands / 3 queries, `TryReserveAsync`, Booking-only internal endpoints, seed generator | §7 (FR-CAT-01..09), AR-09, SD-03, SD-05, CP-10 | Step-3 | filters + total · 403 attendee / other owner, 200 admin · public/internal authorization proven · 409 overbook · same reservationId twice → seats change once · 400 invalid | Dependent (Step-3) |
 | **Step-5** | Booking service: book with compensation, mine, retryable cancel, stats. ⛔ No UI, no idempotency key | `Booking` entity, cancellation release-pending state, 2 commands / 3 queries, `ICatalogClient`, `IPaymentGateway`, seed | §8 (FR-BKG-01..07, 09), SD-04, SD-05, CP-10 | Step-4 | seats −2 · 422 keeps seats · cancel restores / retry after Catalog outage / 403 other · stats scoped · 503 when Catalog down, My Bookings still works | Dependent (Step-4) |
@@ -282,30 +282,30 @@ with one command, SQL has three empty databases, and the gateway routes to every
 ⛔ No business code — only health checks.
 
 **Implementation**
-- [ ] `.gitignore` (.NET, Node, macOS `.DS_Store`), `.editorconfig`
-- [ ] `Directory.Build.props` (net10.0, Nullable, ImplicitUsings, TreatWarningsAsErrors, analyzers) and `Directory.Packages.props` (central versions) — CP-01
-- [ ] `dotnet new aspire -n EventHub` → move into `src/Aspire/`
-- [ ] Per service create `*.Domain`, `*.Application`, `*.Infrastructure` (classlib) and `*.Api` (webapi) for Identity, Catalog, Booking; `Agent.Application`, `Agent.Infrastructure`, `Agent.Api`; `EventHub.Gateway` (web); `EventHub.BuildingBlocks`, `EventHub.SeedData` (classlib). No test projects.
-- [ ] Project references exactly as CA-01…CA-04 and CA-07 (Domain → BuildingBlocks; Application → Domain; Infrastructure → Application; Api → Infrastructure + ServiceDefaults; ServiceDefaults → BuildingBlocks for Result mapping and `ICurrentUser`)
-- [ ] AppHost: `AddParameter("sql-password", secret: true)` passed to `AddSqlServer("sql", password: sqlPassword)`, then `.WithDataVolume().WithLifetime(ContainerLifetime.Persistent)`; databases `identitydb`, `catalogdb`, `bookingdb`; each API `WithReference` + `WaitFor` its DB; Booking → Catalog; Agent → Catalog + Booking; Gateway → all four + `WithExternalHttpEndpoints()`
-- [ ] AppHost: secret parameters `jwt-key` (≥ 32 chars) and `booking-service-key` (≥ 32 random chars) in AppHost user-secrets → `Jwt__Key` on all APIs; the service key only on Booking and Catalog
-- [ ] Gateway: `Yarp.ReverseProxy` + `Microsoft.Extensions.ServiceDiscovery.Yarp`; routes `/identity`, `/catalog`, `/booking`, `/agent` with `PathRemovePrefix`; destinations `http://<name>`; port 5100. Catalog routing explicitly excludes `/internal/*` (AR-09).
-- [ ] `gateway.http`: `GET http://localhost:5100/<service>/health` ×4
-- [ ] Create `DECISIONS.md` (Decision · Why · Trade-off) and `LEARNING.md`
+- [x] `.gitignore` (.NET, Node, macOS `.DS_Store`), `.editorconfig`
+- [x] `Directory.Build.props` (net10.0, Nullable, ImplicitUsings, TreatWarningsAsErrors, analyzers) and `Directory.Packages.props` (central versions) — CP-01
+- [x] `dotnet new aspire -n EventHub` → move into `src/Aspire/`
+- [x] Per service create `*.Domain`, `*.Application`, `*.Infrastructure` (classlib) and `*.Api` (webapi) for Identity, Catalog, Booking; `Agent.Application`, `Agent.Infrastructure`, `Agent.Api`; `EventHub.Gateway` (web); `EventHub.BuildingBlocks`, `EventHub.SeedData` (classlib). No test projects.
+- [x] Project references exactly as CA-01…CA-04 and CA-07 (Domain → BuildingBlocks; Application → Domain; Infrastructure → Application; Api → Infrastructure + ServiceDefaults; ServiceDefaults → BuildingBlocks for Result mapping and `ICurrentUser`)
+- [x] AppHost: `AddParameter("sql-password", secret: true)` passed to `AddSqlServer("sql", password: sqlPassword)`, then `.WithDataVolume().WithLifetime(ContainerLifetime.Persistent)`; databases `identitydb`, `catalogdb`, `bookingdb`; each API `WithReference` + `WaitFor` its DB; Booking → Catalog; Agent → Catalog + Booking; Gateway → all four + `WithExternalHttpEndpoints()`
+- [x] AppHost: secret parameters `jwt-key` (≥ 32 chars) and `booking-service-key` (≥ 32 random chars) in AppHost user-secrets → `Jwt__Key` on all APIs; the service key only on Booking and Catalog
+- [x] Gateway: `Yarp.ReverseProxy` + `Microsoft.Extensions.ServiceDiscovery.Yarp`; routes `/identity`, `/catalog`, `/booking`, `/agent` with `PathRemovePrefix`; destinations `http://<name>`; port 5100. Catalog routing explicitly excludes `/internal/*` (AR-09).
+- [x] `gateway.http`: `GET http://localhost:5100/<service>/health` ×4
+- [x] Create `DECISIONS.md` (Decision · Why · Trade-off) and `LEARNING.md`
 
 **Trap.** First run takes ~1 min (SQL under Rosetta) — `WaitFor` prevents crash loops.
 
 **Dependencies.** Step-1b, Step-1c, Step-1d, Step-1e.
 
 **Acceptance criteria**
-- [ ] `dotnet build` succeeds with 0 warnings
-- [ ] `dotnet run --project src/Aspire/EventHub.AppHost` → every resource `Running` in the dashboard
-- [ ] `identitydb`, `catalogdb`, `bookingdb` exist in the SQL container
-- [ ] All 4 health requests through :5100 return `Healthy`
-- [ ] Start, stop and start AppHost again without deleting the SQL volume; all three databases remain healthy
-- [ ] `git diff --cached` plus a secret scanner (for example `gitleaks protect --staged`, if installed) shows no secret **values**; configuration key names and documented demo credentials are allowed
+- [x] `dotnet build` succeeds with 0 warnings
+- [x] `dotnet run --project src/Aspire/EventHub.AppHost` → every resource `Running` in the dashboard
+- [x] `identitydb`, `catalogdb`, `bookingdb` exist in the SQL container
+- [x] All 4 health requests through :5100 return `Healthy`
+- [x] Start, stop and start AppHost again without deleting the SQL volume; all three databases remain healthy
+- [x] `git diff --cached` plus a secret scanner (for example `gitleaks protect --staged`, if installed) shows no secret **values**; configuration key names and documented demo credentials are allowed
 
-**Status.** Not Started
+**Status.** Completed (2026-09-26 — evidence: `dotnet build EventHub.sln`, Aspire dashboard, `gateway.http`, SQL query, restart persistence check)
 
 ---
 
@@ -334,7 +334,7 @@ architecture checks (Later L-3).
 - [ ] `?fail=NotFound|Conflict|Forbidden|Unavailable|Unprocessable` → 404 / 409 / 403 / 503 / 422 ProblemDetails
 - [ ] `?throw=true` → 500 ProblemDetails with no stack trace in the response, and the exception in the logs
 
-**Status.** Dependent (Step-2)
+**Status.** Not Started
 
 ---
 

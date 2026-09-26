@@ -94,7 +94,7 @@ does not depend on it.
 
 - macOS on Apple Silicon (M1). SQL Server runs as an amd64 container under Rosetta (slow first start).
 - Port 5000 is taken by macOS AirPlay — the gateway uses **5100**.
-- Backend: `dotnet run --project src/EventHub.AppHost` · Frontend: `cd web && npm start` (http://localhost:4200)
+- Backend: `dotnet run --project src/Aspire/EventHub.AppHost` · Frontend: `cd web && npm start` (http://localhost:4200)
 - Ollama must be running (menu-bar icon) before the Agent API is used.
 - Demo users: `admin@demo.com`, `organizer@demo.com`, `organizer2@demo.com`, `attendee@demo.com`,
   `attendee2@demo.com` — password `Demo@123`.
