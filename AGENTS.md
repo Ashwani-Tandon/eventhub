@@ -11,8 +11,17 @@ following the same process.
 | `docs/EXECUTION_PLAN.md` | **In what order**, and how each step is proven. The board is authoritative; detail status is synchronized with it. |
 | `AGENTS.md`              | **How** to work (this file).                                                                                       |
 
-Supporting files created along the way live in `docs/`: `DECISIONS.md` (why things are the way they
-are), `LEARNING.md` (what the owner learned per step), `PROJECT_STRUCTURE.md`, `README.md`, `DEMO.md`.
+Supporting documentation lives under `docs/services/`: one API reference per service and common
+references for project structure, Gateway, BuildingBlocks, and Aspire. `docs/README.md` is the index.
+
+### Service documentation preference
+
+Maintain service API references under `docs/services/<service>/API.md`, linked from `docs/services/README.md`.
+Explain the service's purpose, every implemented endpoint, inputs, access rules, success responses,
+and validation/business-error messages so a reader understands its behavior without reading code.
+Do not create standalone step-evidence reports, step walkthroughs, `DECISIONS.md`, or `LEARNING.md`.
+Put design reasons, trade-offs, and practical usage explanations in the relevant service/common reference.
+Still run and show verification; keep concise acceptance observations and `.http`/commit pointers in the execution plan.
 
 ## Purpose — this is a learning project
 
@@ -70,12 +79,12 @@ Do **not** start the next step unless asked.
     - what was built (files, endpoints)
     - the 2–4 concepts it demonstrates and **why** it was done this way
     - one "break it on purpose" experiment to try, and what should happen
-- Append 3–5 lines to `docs/LEARNING.md` for that step.
+- Update the relevant service/common reference to explain newly implemented behavior and its trade-offs.
 
 ## When the spec and reality disagree
 
-Stop and tell the owner. If they agree to a change: update `docs/SPEC.md` first, add a `docs/DECISIONS.md` entry
-(Decision · Why · Trade-off), then change the code. Never silently diverge from the spec.
+Stop and tell the owner. If they agree to a change: update `docs/SPEC.md` first, explain the reason
+and trade-off in the relevant service/common reference, then change the code. Never silently diverge from the spec.
 
 ## When stuck
 

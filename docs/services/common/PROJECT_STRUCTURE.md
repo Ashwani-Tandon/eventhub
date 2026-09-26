@@ -1,11 +1,11 @@
 # EventHub — Project Structure
 
-This guide explains where code belongs and why each project exists. After Step-2, the structure and
-runtime wiring are present, but the business projects are intentionally empty until their planned steps.
+This guide explains where code belongs and why each project exists. Identity, Catalog, and Booking
+have implemented business APIs; the Agent and Angular work remains on the execution board.
 
-Step-3 fills Identity's four layers with user rules, five CQRS slices, SQL/hash/JWT adapters,
-and HTTP endpoints. ServiceDefaults now supplies shared JWT validation, role policies, and token
-request context; the initial Identity migration and live evidence are committed with this step.
+For service behavior, endpoints, inputs, and validation/error messages, see the
+[service API references](../README.md). ServiceDefaults supplies shared JWT validation,
+role policies, and token request context; each implemented business service owns its migrations.
 
 ## Repository map
 
@@ -77,7 +77,7 @@ dotnet run --project src/Aspire/EventHub.AppHost
 ### `EventHub.ServiceDefaults`
 
 Common ASP.NET Core hosting setup used by APIs and the gateway: service discovery, health endpoints,
-OpenTelemetry logging/metrics/tracing, and later shared authentication and resilience configuration.
+OpenTelemetry logging/metrics/tracing, shared authentication, and later resilience configuration.
 It contains cross-service technical setup, not domain behavior.
 
 ### `EventHub.BuildingBlocks`
@@ -121,34 +121,35 @@ the service that owns the database.
 
 ### Booking
 
-| Project                  | Purpose                                                                                                         |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `Booking.Domain`         | Owns booking and cancellation state transitions and their invariants.                                           |
-| `Booking.Application`    | Create/cancel/list/statistics use cases; owns Catalog-client, payment, repository, and query ports.             |
-| `Booking.Infrastructure` | Booking database, migrations, Catalog HTTP adapter, fake payment adapter, idempotency persistence, and seeding. |
-| `Booking.Api`            | `/bookings/*` endpoints, policies, and dependency composition.                                                  |
+| Project                  | Purpose                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `Booking.Domain`         | Owns booking and cancellation state transitions and their invariants.                                               |
+| `Booking.Application`    | Create/cancel/list/statistics use cases; owns Catalog-client, payment, repository, and query ports.                 |
+| `Booking.Infrastructure` | Booking database, migrations, Catalog HTTP adapter, fake payment adapter, pending-release persistence, and seeding. |
+| `Booking.Api`            | `/bookings/*` endpoints, policies, and dependency composition.                                                      |
 
 ### Agent
 
-The Agent has no Domain project because it owns no business entities or database. It must act through
-the same Catalog and Booking APIs as the logged-in user.
+The Agent has no Domain project because it owns no business entities or database. It currently has
+only hosting/authentication and development health routes; chat and tools remain planned.
+Its future tools must act through the same Catalog and Booking APIs as the logged-in user.
 
-| Project                | Purpose                                                                                            |
-| ---------------------- | -------------------------------------------------------------------------------------------------- |
-| `Agent.Application`    | Chat use case, tool definitions, conversation contracts, and Catalog/Booking API ports.            |
-| `Agent.Infrastructure` | Ollama integration and authenticated HTTP clients that implement the application ports.            |
-| `Agent.Api`            | `/agent/*` HTTP endpoint, dependency composition, authentication, timeout, and concurrency limits. |
+| Project                | Purpose                                                                                                               |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `Agent.Application`    | Scaffold; planned chat use case, tool definitions, conversation contracts, and API ports.                             |
+| `Agent.Infrastructure` | Scaffold; planned Ollama integration and authenticated HTTP clients.                                                  |
+| `Agent.Api`            | Hosting/authentication and development health routes; chat, timeouts, and concurrency limits are not implemented yet. |
 
 ## Request flow examples
 
-A public event search follows this path:
+A public event search follows this path (Angular is the planned UI; Postman/curl can call it now):
 
 ```text
 Angular → Gateway `/catalog/events` → Catalog.Api
         → Catalog.Application query → Catalog.Infrastructure projection → catalogdb
 ```
 
-A future booking crosses a service boundary without sharing databases:
+A booking already crosses a service boundary without sharing databases:
 
 ```text
 Angular → Gateway → Booking.Api → Booking.Application

@@ -44,9 +44,9 @@ number, which is why the board is not in numeric order — **execution order is 
 | **Step-1e**     | Ollama + model + tool calling. ⛔ No agent code                                                                                                                                      | 👤 open Ollama · pull model by RAM · curl tool-call test                                                                                 | §3, FR-AGT-06                                  | Step-1a                                                                | model listed · warm answer < 20 s · `tool_calls` returned · :11434 up                                                                                                         | Completed (2026-09-25 — evidence: `ollama list`, warm `ollama run` 1.49 s, `/api/tags`, `/api/chat` returned `get_weather` for Delhi)                                                                                          |
 | **Step-2**      | Solution skeleton in Clean Architecture layout; Aspire, SQL + 3 DBs, gateway. ⛔ No business code, no test projects                                                                  | All projects of §15.5 with CA-01…04 references, Directory.Build/Packages.props, AppHost wiring, YARP :5100                               | §4, §15.5, AR-01..09, CP-01, NFR-01/02         | Step-1b, Step-1c, Step-1d, Step-1e                                     | builds with 0 warnings · dashboard all Running · 3 DBs survive a restart · 4 health checks via :5100 · no committed secrets                                                   | Completed (2026-09-26 — evidence: `dotnet build EventHub.sln`, Aspire dashboard, `gateway.http`, SQL query, restart persistence check)                                                                                         |
 | **Step-20**     | BuildingBlocks: mediator, CQRS contracts, behaviors, Result; Result→HTTP mapping. ⛔ No service use cases, no architecture checks (Later)                                            | `ISender`, `ICommand/IQuery` + handlers, 3 behaviors, `Result/Error`, `ToHttpResult()`, global exception handler, dev-only `/debug/echo` | §15.1–15.2, CQ-03/04/06                        | Step-2                                                                 | echo logs behaviors in order · invalid echo → 400, handler not run · each ErrorType → right status · unexpected exception → 500 ProblemDetails                                | Completed (2026-09-26 — evidence: `dotnet build EventHub.sln`, `Identity.Api/debug.http`, Aspire console logs)                                                                                                                 |
-| **Step-3**      | Identity service (all 4 layers) + shared JWT validation. ⛔ No UI                                                                                                                    | `User` entity, 3 commands / 2 queries, JWT + hasher ports, `AddEventHubAuth()`, seed                                                     | §6, SD-02, §15.2, CP-10                        | Step-20                                                                | 5 users get tokens · claims correct · generic 401 · 403/200 on `/users` · `/auth/me` + 409 duplicate                                                                          | Completed (2026-09-26 — evidence: `docs/STEP-3-EVIDENCE.md`, `identity.http`; build 0 warnings)                                                                                                                                |
-| **Step-4**      | Catalog service: events CRUD, search, ownership, internal idempotent seat reservations. ⛔ No bookings, no rowVersion                                                                | `Event`, `SeatReservation`, 5 commands / 3 queries, `TryReserveAsync`, Booking-only internal endpoints, seed generator                   | §7 (FR-CAT-01..09), AR-09, SD-03, SD-05, CP-10 | Step-3                                                                 | filters + total · 403 attendee / other owner, 200 admin · public/internal authorization proven · 409 overbook · same reservationId twice → seats change once · 400 invalid    | Completed (2026-09-26 — evidence: `docs/STEP-4-EVIDENCE.md`, `Catalog.Api/catalog.http`; build 0 warnings)                                                                                                                     |
-| **Step-5**      | Booking service: book with compensation, mine, retryable cancel, stats. ⛔ No UI, no idempotency key                                                                                 | `Booking` entity, cancellation release-pending state, 2 commands / 3 queries, `ICatalogClient`, `IPaymentGateway`, seed                  | §8 (FR-BKG-01..07, 09), SD-04, SD-05, CP-10    | Step-4                                                                 | seats −2 · 422 keeps seats · cancel restores / retry after Catalog outage / 403 other · stats scoped · 503 when Catalog down, My Bookings still works                         | Completed (2026-09-27 — evidence: `docs/STEP-5-EVIDENCE.md`, `Booking.Api/booking.http`; build 0 warnings)                                                                                                                     |
+| **Step-3**      | Identity service (all 4 layers) + shared JWT validation. ⛔ No UI                                                                                                                    | `User` entity, 3 commands / 2 queries, JWT + hasher ports, `AddEventHubAuth()`, seed                                                     | §6, SD-02, §15.2, CP-10                        | Step-20                                                                | 5 users get tokens · claims correct · generic 401 · 403/200 on `/users` · `/auth/me` + 409 duplicate                                                                          | Completed (2026-09-26 — evidence: `identity.http`; build 0 warnings)                                                                                                                                                           |
+| **Step-4**      | Catalog service: events CRUD, search, ownership, internal idempotent seat reservations. ⛔ No bookings, no rowVersion                                                                | `Event`, `SeatReservation`, 5 commands / 3 queries, `TryReserveAsync`, Booking-only internal endpoints, seed generator                   | §7 (FR-CAT-01..09), AR-09, SD-03, SD-05, CP-10 | Step-3                                                                 | filters + total · 403 attendee / other owner, 200 admin · public/internal authorization proven · 409 overbook · same reservationId twice → seats change once · 400 invalid    | Completed (2026-09-26 — evidence: `Catalog.Api/catalog.http`; build 0 warnings)                                                                                                                                                |
+| **Step-5**      | Booking service: book with compensation, mine, retryable cancel, stats. ⛔ No UI, no idempotency key                                                                                 | `Booking` entity, cancellation release-pending state, 2 commands / 3 queries, `ICatalogClient`, `IPaymentGateway`, seed                  | §8 (FR-BKG-01..07, 09), SD-04, SD-05, CP-10    | Step-4                                                                 | seats −2 · 422 keeps seats · cancel restores / retry after Catalog outage / 403 other · stats scoped · 503 when Catalog down, My Bookings still works                         | Completed (2026-09-27 — evidence: `Booking.Api/booking.http`; build 0 warnings)                                                                                                                                                |
 | **Step-16**     | Idempotent booking creation + optimistic concurrency on event edits. ⛔ No retry policies, no UI                                                                                     | atomic `BookingRequest` claim with stable reservation/payment IDs; `RowVersion` on `Event`; migrations                                   | FR-BKG-08, FR-CAT-10, RES-06/07, CP-10         | Step-5                                                                 | same key twice → one booking · parallel same key → same booking and one payment/reservation · mismatched replay → 409 · different keys → two · stale rowVersion → 409         | Not Started                                                                                                                                                                                                                    |
 | **Step-17**     | Resilience pipeline for service-to-service calls, DB retry. ⛔ No chaos toggle (Later), no gateway limits, no UI                                                                     | `AddEventHubResilience()` in ServiceDefaults, safe-method retry rule, breaker → 503, EF execution strategy                               | RES-01/02/03/04/05/13, FR-BKG-07               | Step-5                                                                 | Catalog stopped → retries in trace, then 503 · repeated failures → circuit opens, fast 503 · restart → recovers after break · breaker transitions logged                      | Not Started                                                                                                                                                                                                                    |
 | ~~**Step-18**~~ | ~~Gateway rate limiting, timeouts, aggregated health~~ — **retired by the owner; moved to "Later — for understanding" (L-2)**. The `/agent` route timeout moved into Step-9.         | —                                                                                                                                        | —                                              | —                                                                      | —                                                                                                                                                                             | Retired                                                                                                                                                                                                                        |
@@ -61,7 +61,7 @@ number, which is why the board is not in numeric order — **execution order is 
 | **Step-9**      | Agent service (3 layers), read-only tools, timeout + bulkhead. ⛔ Cannot book/cancel/stats                                                                                           | M.E.AI + OllamaSharp, `SendChatMessage` command, 3 tools, ports `ICatalogApi`/`IBookingApi`, limiter, `/agent` route timeout 120 s       | §9, FR-AGT-01/02/04/05/06/07, CA-07, NFR-04    | Step-1e, Step-5, Step-17                                               | real events + tool calls in logs · nothing invented, off-topic declined · warm reply < 30 s · Ollama down → 503, overload → 429                                               | Dependent (Step-1e, Step-5, Step-17)                                                                                                                                                                                           |
 | **Step-10**     | Agent action tools + permissions + idempotent booking tool. ⛔ No UI                                                                                                                 | `BookTickets` (with key), `CancelBooking`, `GetSalesStats`, confirmation rule                                                            | FR-AGT-03/04/08                                | Step-9, Step-16                                                        | confirms then books · attendee stats refused (403 in logs) · organizer stats match · cancel by name                                                                           | Dependent (Step-9, Step-16)                                                                                                                                                                                                    |
 | **Step-11**     | Chat widget. ⛔ No new agent features                                                                                                                                                | `features/chat`, floating panel, session history, indicator, clear on logout                                                             | FR-UI-12                                       | Step-6, Step-9                                                         | multi-turn memory · hidden logged out · empty for next user · slow reply shows indicator                                                                                      | Dependent (Step-6, Step-9)                                                                                                                                                                                                     |
-| **Step-12**     | Demo readiness. ⛔ No new features                                                                                                                                                   | README, DECISIONS, DEMO script (incl. resilience demo), data reset, tag v1.0                                                             | §2, all                                        | Step-7b, Step-8a, Step-8b, Step-8c, Step-10, Step-11, Step-17, Step-19 | fresh clone runs from README · build 0 warnings, `ng lint` passes · demo runs clean twice · every decision explainable                                                        | Dependent (Step-7b, Step-8a, Step-8b, Step-8c, Step-10, Step-11, Step-17, Step-19)                                                                                                                                             |
+| **Step-12**     | Demo readiness. ⛔ No new features                                                                                                                                                   | README, service/common references, DEMO script (incl. resilience demo), data reset, tag v1.0                                             | §2, all                                        | Step-7b, Step-8a, Step-8b, Step-8c, Step-10, Step-11, Step-17, Step-19 | fresh clone runs from README · build 0 warnings, `ng lint` passes · demo runs clean twice · every decision explainable                                                        | Dependent (Step-7b, Step-8a, Step-8b, Step-8c, Step-10, Step-11, Step-17, Step-19)                                                                                                                                             |
 | ~~**Step-15**~~ | ~~Same agent rebuilt on Microsoft Agent Framework, compared~~ — **retired by the owner; moved to "Later — for understanding" (L-1)**                                                 | —                                                                                                                                        | —                                              | —                                                                      | —                                                                                                                                                                             | Retired                                                                                                                                                                                                                        |
 
 **Parallel paths.** Step-1b…1e run in any order after 1a, but all must finish before Step-2. After
@@ -79,7 +79,7 @@ their work is in the "Later — for understanding" list at the end.
 _Stated once here; not repeated in the steps below._
 
 1. **Spec first.** Read the step's Spec column in `SPEC.md` before starting. If the code must differ
-   from the spec, change `SPEC.md` first and log the reason in `DECISIONS.md`.
+   from the spec, change `SPEC.md` first and log the reason in the relevant service/common reference.
 2. **Folder layout** is SPEC §15.5. .NET in `src/`, Angular in `web/`, and `.http` files next to each
    `*.Api/Program.cs`. If Later L-3 is activated, its architecture-test project lives in `tests/`.
 3. **Clean Architecture + CQRS** (SPEC §15): every use case is a command or query in its own feature
@@ -106,8 +106,8 @@ _Stated once here; not repeated in the steps below._
     step to `Blocked (OI-##)`, continue with a step that does not depend on it.
 14. **Update the board** on every status change. When a step completes, any step whose dependencies
     are all `Completed` becomes `Not Started`.
-15. **Learn as you go.** After each step, 3–5 lines in `LEARNING.md`: what was built, why, and one
-    "break it on purpose" experiment you tried.
+15. **Explain implemented behavior.** After each step, update the relevant service/common reference:
+    include its purpose, API contract, rules, trade-offs, and a practical usage example.
 16. **File purpose explanations.** Every new human-authored file starts with 2–3 plain-language lines
     explaining what it does, why it exists, and where it fits in the application flow. Use supported
     comments or opening documentation prose; for formats without comments, document it in the nearest
@@ -164,7 +164,7 @@ block local project setup.
 - [x] Git is available (`git --version`: Apple Git 2.39.5); owner's name and email are configured for this local repository. No additional Git installation is needed.
 - [x] 👤 In VS Code press Cmd+Shift+P → _Shell Command: Install 'code' command in PATH_ (`command -v code` → `/usr/local/bin/code`)
 - [x] Extensions: `ms-dotnettools.csdevkit`, `angular.ng-template`, `ms-mssql.mssql`, `humao.rest-client` (`code --list-extensions` verified 2026-09-24)
-- [x] Record RAM (`sysctl hw.memsize`: 8589934592 bytes, 8 GB) in `LEARNING.md` — Step-1e uses `qwen2.5:3b`
+- [x] Record RAM (`sysctl hw.memsize`: 8589934592 bytes, 8 GB) in the relevant runtime reference — Step-1e uses `qwen2.5:3b`
 
 **Dependencies.** Step-13.
 
@@ -271,7 +271,7 @@ the installation and confirmed the Rosetta and memory settings before the contai
 - [x] `ollama run qwen2.5:3b "What is a microservice? One sentence."` ran twice; timed warm run completed in 1.49 s
 - [x] `curl http://localhost:11434/api/tags` returned both installed models and reported `qwen2.5:3b` capabilities `completion` and `tools`
 - [x] Tool-call test: `POST http://localhost:11434/api/chat` with `"stream": false` returned `message.tool_calls[0].function.name = "get_weather"` and `arguments.city = "Delhi"`
-- [x] Recorded the chosen model in `LEARNING.md` (Step-9 uses it for `Ollama:Model`)
+- [x] Recorded the chosen model in the relevant runtime reference (Step-9 uses it for `Ollama:Model`)
 
 **Trap.** First answer is slow (model loading). Only the warm answer counts.
 
@@ -309,7 +309,7 @@ with one command, SQL has three empty databases, and the gateway routes to every
 - [x] AppHost: secret parameters `jwt-key` (≥ 32 chars) and `booking-service-key` (≥ 32 random chars) in AppHost user-secrets → `Jwt__Key` on all APIs; the service key only on Booking and Catalog
 - [x] Gateway: `Yarp.ReverseProxy` + `Microsoft.Extensions.ServiceDiscovery.Yarp`; routes `/identity`, `/catalog`, `/booking`, `/agent` with `PathRemovePrefix`; destinations `http://<name>`; port 5100. Catalog routing explicitly excludes `/internal/*` (AR-09).
 - [x] `gateway.http`: `GET http://localhost:5100/<service>/health` ×4
-- [x] Create `DECISIONS.md` (Decision · Why · Trade-off) and `LEARNING.md`
+- [x] Maintain service/common references with API behavior, design reasons, and trade-offs
 
 **Trap.** First run takes ~1 min (SQL under Rosetta) — `WaitFor` prevents crash loops.
 
@@ -344,7 +344,7 @@ architecture checks (Later L-3).
 - [x] ServiceDefaults: `result.ToHttpResult()` mapping `ErrorType` → 400/404/409/403/401/503/422 ProblemDetails (validation errors as field dictionary); global `IExceptionHandler` → 500 ProblemDetails, logged
 - [x] Proof endpoint (Development only) in `Identity.Api`: `POST /debug/echo` sends an `EchoCommand { message }` with a validator (required, ≤ 20 chars); `?fail=<ErrorType>` makes the handler return that error; `?throw=true` throws — lets you see the mediator working before any real use case exists
 - [x] `debug.http` with the echo cases
-- [x] DECISIONS: why a hand-written mediator (MediatR v13+ is commercial; learning), CQRS-lite, Result vs exceptions
+- [x] Documentation: why a hand-written mediator (MediatR v13+ is commercial; learning), CQRS-lite, Result vs exceptions
 
 **Dependencies.** Step-2.
 
@@ -383,7 +383,9 @@ four layers with commands and queries. ⛔ No UI, no refresh tokens.
 - [x] `/users` → 403 with attendee token, 200 with admin token (FR-ID-05)
 - [x] `/auth/me` → 401 without token, correct user with it; duplicate register → 409 (FR-ID-01/04)
 
-**Status.** Completed (2026-09-26 — evidence: `docs/STEP-3-EVIDENCE.md`, `src/Services/Identity/Identity.Api/identity.http`; build 0 warnings)
+Verified: five demo logins, profile claims, role access, registration and duplicate rejection passed live HTTP checks; build had zero warnings.
+
+**Status.** Completed (2026-09-26 — evidence: `src/Services/Identity/Identity.Api/identity.http`; build 0 warnings)
 
 ---
 
@@ -401,7 +403,7 @@ four layers with commands and queries. ⛔ No UI, no refresh tokens.
 - [x] `EventHub.SeedData`: deterministic generator (fixed seed) for SD-03 events **and** SD-04 bookings; Catalog seeds events with `SeatsBooked` = sum of confirmed quantities, plus matching `Held` reservations (SD-05)
 - [x] **Api:** public endpoints of SPEC §7.3 plus `/internal/*`; the internal group requires a valid user JWT and constant-time validation of `X-EventHub-Service`. YARP has no route to this group.
 - [x] Create and commit the initial Catalog EF migration; call `MigrateAsync()` before seeding (CP-10)
-- [x] DECISIONS: why internal seat endpoints require both the user token and a Booking credential, and why gateway exclusion alone is insufficient
+- [x] Documentation: why internal seat endpoints require both the user token and a Booking credential, and why gateway exclusion alone is insufficient
 - [x] `catalog.http`
 
 **Trap.** Seeded event IDs must match the IDs the booking seed refers to — insert in generator order
@@ -419,7 +421,9 @@ into an empty table and assert the IDs after seeding; fail loudly if they differ
 - [x] Calling `/catalog/internal/...` through the gateway → 404; calling the service directly without the Booking credential → 403
 - [x] Invalid input (negative price, past date) → 400 with field messages (FR-CAT-06)
 
-**Status.** Completed (2026-09-26 — evidence: `docs/STEP-4-EVIDENCE.md`, `src/Services/Catalog/Catalog.Api/catalog.http`; build 0 warnings)
+Verified: search/counts, role/ownership checks, internal credential restriction, overbooking rejection, reservation replay, and invalid input passed live HTTP checks; build had zero warnings.
+
+**Status.** Completed (2026-09-26 — evidence: `src/Services/Catalog/Catalog.Api/catalog.http`; build 0 warnings)
 
 ---
 
@@ -436,7 +440,7 @@ into an empty table and assert the IDs after seeding; fail loudly if they differ
 - [x] Catalog unreachable → `Error.Unavailable` → 503 (FR-BKG-07); queries never call Catalog (FR-BKG-09)
 - [x] **Api:** endpoints of SPEC §8.3
 - [x] Create and commit the initial Booking EF migration; call `MigrateAsync()` before seeding (CP-10)
-- [x] DECISIONS: cancellation's `SeatReleasePending` eventual-consistency trade-off and retry behavior without a broker/outbox
+- [x] Documentation: cancellation's `SeatReleasePending` eventual-consistency trade-off and retry behavior without a broker/outbox
 - [x] `booking.http`
 
 **Dependencies.** Step-4.
@@ -450,7 +454,9 @@ into an empty table and assert the IDs after seeding; fail loudly if they differ
 - [x] Stats: organizer2 sees only their events; attendee → 403 (FR-BKG-06)
 - [x] Catalog stopped → `POST /bookings` 503 while `GET /bookings/mine` still 200 (FR-BKG-07/09)
 
-**Status.** Completed (2026-09-27 — evidence: `docs/STEP-5-EVIDENCE.md`, `Booking.Api/booking.http`; build 0 warnings)
+Verified: two-seat purchase 201 reduced availability by two; forced decline 422 left seats unchanged; owner cancel/replay 200 restored seats and wrong owner got 403. Catalog outage produced 503 with pending release true while history/stats stayed 200; recovery replay cleared the flag and returned seats once. Organizer scoping and attendee stats 403 passed. Initial seed: 300 bookings, 29 Cancelled; final build: zero warnings. Commit: `c604b2a`.
+
+**Status.** Completed (2026-09-27 — evidence: `Booking.Api/booking.http`; build 0 warnings)
 
 ---
 
@@ -463,11 +469,11 @@ the same event cannot silently overwrite each other. ⛔ No retry policies (Step
 
 - [ ] Booking: add `BookingRequest` with unique (`UserId`, `IdempotencyKey`), request inputs, stable `ReservationId`, state and nullable `BookingId`; retain the booking's unique filtered index as a second guard
 - [ ] `CreateBooking`: atomically insert/claim `BookingRequest` **before** Catalog/payment. The winner uses its stable reservation id and passes the idempotency key to the idempotent fake payment adapter. A matching concurrent loser observes `Processing`, waits with a bounded delay/cancellation token, then returns the completed booking; it never calls Catalog/payment. A different payload with the same key → 409.
-- [ ] A stale `Processing` request is resumed with the stored reservation/payment identities. Known failures (400/404/409/422) compensate, then delete the claim; never delete it before compensation succeeds. Document the unavoidable crash window and recovery behavior in `DECISIONS.md`.
+- [ ] A stale `Processing` request is resumed with the stored reservation/payment identities. Known failures (400/404/409/422) compensate, then delete the claim; never delete it before compensation succeeds. Document the unavoidable crash window and recovery behavior in the relevant service/common reference.
 - [ ] Fake payment stores/derives one result per (`UserId`, `IdempotencyKey`) so resume cannot charge twice; log one payment invocation/reference per claimed request
 - [ ] Catalog: `RowVersion` (`IsRowVersion()`) on `Event`; `EventDto.rowVersion` base64; `UpdateEvent` sets the original value → `DbUpdateConcurrencyException` → `Error.Conflict` (FR-CAT-10)
 - [ ] Add and commit Booking and Catalog EF migrations for these schema changes; apply them with `MigrateAsync()` without deleting the persistent volume
-- [ ] DECISIONS: why a pre-side-effect request claim is required (a unique index on the final booking is too late), stale-claim recovery, and its limitations
+- [ ] Documentation: why a pre-side-effect request claim is required (a unique index on the final booking is too late), stale-claim recovery, and its limitations
 - [ ] `.http` cases for all criteria (parallel test via a small script firing 2 requests at once)
 
 **Dependencies.** Step-5.
@@ -498,8 +504,8 @@ down. ⛔ No chaos toggle (Later L-4), no gateway rate limiting (Later L-2), no 
 - [ ] Map `BrokenCircuitException` / `TimeoutRejectedException` / `HttpRequestException` → `Error.Unavailable` → 503 + `Retry-After` (RES-03)
 - [ ] Confirm EF Core retrying execution strategy is on for all three DbContexts; explicit transactions wrapped (RES-05)
 - [ ] Logging of retries, breaker transitions, timeouts with trace id (RES-13)
-- [ ] `resilience.http` + `LEARNING.md` notes with screenshots of the Aspire traces
-- [ ] DECISIONS: chosen numbers and why timeouts nest (SPEC §14.3)
+- [ ] `resilience.http` + shared-hosting documentation with screenshots of the Aspire traces
+- [ ] Documentation: chosen numbers and why timeouts nest (SPEC §14.3)
 
 **How to see it working without a chaos switch:** stop Catalog from the Aspire dashboard (⏹) and
 restart it (▶) while sending bookings from `resilience.http`.
@@ -538,7 +544,7 @@ structure of CP-09. ⛔ Feature pages are placeholders only.
 - [ ] Functional interceptor: Bearer header; 401 → logout + redirect (FR-UI-02)
 - [ ] `authGuard`, `roleGuard(roles)` (FR-UI-04); toolbar + role-filtered menu (FR-UI-03)
 - [ ] Login and Register pages with typed reactive forms (FR-UI-01)
-- [ ] DECISIONS: localStorage vs HttpOnly cookie
+- [ ] Documentation: localStorage vs HttpOnly cookie
 
 **Dependencies.** Step-3.
 
@@ -659,7 +665,7 @@ structure of CP-09. ⛔ Feature pages are placeholders only.
 
 - [ ] `features/admin`: `/admin/users` table, role dropdown, Save, note "applies at next login"
 - [ ] `/admin/bookings`: all bookings with status filter
-- [ ] DECISIONS: why a role change needs re-login (stateless tokens)
+- [ ] Documentation: why a role change needs re-login (stateless tokens)
 
 **Dependencies.** Step-3, Step-5, Step-6.
 
@@ -773,7 +779,7 @@ never twice. ⛔ No UI.
 - [ ] Tools `BookTickets` (new `Idempotency-Key` per tool call — FR-AGT-08), `CancelBooking`, `GetSalesStats`
 - [ ] System prompt: confirmation rule FR-AGT-03
 - [ ] Tool results: 403 → "Forbidden", 409 → "Not enough seats", 422 → "Payment failed"
-- [ ] DECISIONS: prompt confirmation is UX only; security = API + user token (AR-06)
+- [ ] Documentation: prompt confirmation is UX only; security = API + user token (AR-06)
 
 **Dependencies.** Step-9, Step-16.
 
@@ -822,7 +828,7 @@ never twice. ⛔ No UI.
 **Implementation**
 
 - [ ] `README.md`: what it is, architecture diagram, Clean Architecture + CQRS overview, Mac setup (Phase 0 summary), run commands, demo users, URLs
-- [ ] `DECISIONS.md` complete — at least: microservices, DB per service, gateway, Clean Architecture, CQRS-lite, hand-written mediator, Result pattern, EF migrations, symmetric JWT vs RS256, REST vs pub/sub, compensation vs saga, retryable cancellation, data duplication, token forwarding + internal service credential, idempotency claim, retry/breaker/timeout numbers, agent permissions, local LLM; note gateway rate limiting is deferred to L-2
+- [ ] Service/common references complete — at least: microservices, DB per service, gateway, Clean Architecture, CQRS-lite, hand-written mediator, Result pattern, EF migrations, symmetric JWT vs RS256, REST vs pub/sub, compensation vs saga, retryable cancellation, data duplication, token forwarding + internal service credential, idempotency claim, retry/breaker/timeout numbers, agent permissions, local LLM; note gateway rate limiting is deferred to L-2
 - [ ] `DEMO.md` (~8 minutes): role menus → book → forced payment failure → stop Catalog (retries in trace) → circuit opens (fast 503) → My Bookings still works → restart, recovers → dashboard → agent search + book → attendee refused stats → Aspire trace of one booking
 - [ ] Data reset: stop AppHost, remove the SQL volume, restart → seed returns
 - [ ] Final commit, tag `v1.0`
@@ -834,7 +840,7 @@ never twice. ⛔ No UI.
 - [ ] Fresh clone into a new folder runs using only the README
 - [ ] `dotnet build` has 0 warnings; `ng lint` passes
 - [ ] 👤 `DEMO.md` runs start to finish twice without errors
-- [ ] 👤 You can explain each DECISIONS entry aloud in under a minute
+- [ ] 👤 You can explain each documented design choice aloud in under a minute
 
 **Status.** Dependent (Step-7b, Step-8a, Step-8b, Step-8c, Step-10, Step-11, Step-17, Step-19)
 
@@ -852,12 +858,12 @@ Removed from v1.0 by the owner to keep the build small. Each item is written so 
 up after Step-12 and bolted on without changing what exists. When one is picked up, it becomes a new
 step with the **next free number** (Step-21, Step-22, …) and goes back on the board.
 
-| #       | What                                                                                                                                                                                                   | What you learn                                                                         | How it plugs in                                                                                        | Spec                   |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------- |
-| **L-1** | Rebuild the agent on **Microsoft Agent Framework** at `/agent/v2/chat`, same tools and ports; compare in DECISIONS (lines of code, control over the loop, memory/workflows/multi-agent, debuggability) | When a full agent framework is worth it over Microsoft.Extensions.AI                   | New endpoint in `Agent.Api` reusing `ICatalogApi` / `IBookingApi`; check the framework's licence first | §3                     |
-| **L-2** | **Gateway protection:** rate limits (10 logins/min per IP, 100 req/min per user, 10 chats/min), 429 + `Retry-After`, 30 s default route timeout, gateway `/health` that lists every service            | Throttling, abuse protection, where timeouts belong                                    | ASP.NET Core rate limiter + YARP route metadata in `EventHub.Gateway`                                  | RES-04, RES-08, RES-10 |
-| **L-3** | **Architecture checks:** a `tests/Architecture.Tests` project (NetArchTest) that fails the build when a layer rule is broken                                                                           | How to enforce Clean Architecture automatically                                        | New test project referencing every layer; no production code changes                                   | CA-09                  |
-| **L-4** | **Chaos testing:** `Chaos:Enabled`, `Chaos:FaultRate`, `Chaos:LatencyMs` inject faults/latency into Booking's Catalog client (Polly chaos strategies, Development only)                                | Proving retries, timeouts and the circuit breaker on demand, without stopping services | Two strategies added inside the retry in `AddEventHubResilience()`                                     | RES-11                 |
+| #       | What                                                                                                                                                                                                                               | What you learn                                                                         | How it plugs in                                                                                        | Spec                   |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------- |
+| **L-1** | Rebuild the agent on **Microsoft Agent Framework** at `/agent/v2/chat`, same tools and ports; compare in the relevant service/common reference (lines of code, control over the loop, memory/workflows/multi-agent, debuggability) | When a full agent framework is worth it over Microsoft.Extensions.AI                   | New endpoint in `Agent.Api` reusing `ICatalogApi` / `IBookingApi`; check the framework's licence first | §3                     |
+| **L-2** | **Gateway protection:** rate limits (10 logins/min per IP, 100 req/min per user, 10 chats/min), 429 + `Retry-After`, 30 s default route timeout, gateway `/health` that lists every service                                        | Throttling, abuse protection, where timeouts belong                                    | ASP.NET Core rate limiter + YARP route metadata in `EventHub.Gateway`                                  | RES-04, RES-08, RES-10 |
+| **L-3** | **Architecture checks:** a `tests/Architecture.Tests` project (NetArchTest) that fails the build when a layer rule is broken                                                                                                       | How to enforce Clean Architecture automatically                                        | New test project referencing every layer; no production code changes                                   | CA-09                  |
+| **L-4** | **Chaos testing:** `Chaos:Enabled`, `Chaos:FaultRate`, `Chaos:LatencyMs` inject faults/latency into Booking's Catalog client (Polly chaos strategies, Development only)                                                            | Proving retries, timeouts and the circuit breaker on demand, without stopping services | Two strategies added inside the retry in `AddEventHubResilience()`                                     | RES-11                 |
 
 ---
 
