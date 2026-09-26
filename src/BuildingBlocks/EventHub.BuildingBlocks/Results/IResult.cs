@@ -14,3 +14,5 @@ public interface IResult<TSelf> : IResult
 {
     static abstract TSelf Failure(Error error);
 }
+// Exposes the common success/error shape for both Result variants.
+// The static Failure contract lets validation create the correct response type without reflection.

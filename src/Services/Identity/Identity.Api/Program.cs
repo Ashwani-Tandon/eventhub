@@ -16,3 +16,5 @@ if (app.Environment.IsDevelopment())
 app.MapDefaultEndpoints();
 
 app.Run();
+// Composes the Identity API and registers shared hosting and mediator services.
+// During Development it exposes the echo example so the pipeline can be explored before real use cases.

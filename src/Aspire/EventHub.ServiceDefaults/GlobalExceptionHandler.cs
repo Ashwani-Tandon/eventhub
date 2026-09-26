@@ -44,3 +44,5 @@ public sealed class GlobalExceptionHandler(
         return true;
     }
 }
+// Handles unexpected exceptions centrally and logs their full details.
+// Clients receive a generic 500 ProblemDetails with a trace id, keeping internal stack traces private.

@@ -19,3 +19,5 @@ public interface ICommandHandler<in TCommand, TResponse>
 public interface IQueryHandler<in TQuery, TResponse>
     : IRequestHandler<TQuery, Result<TResponse>>
     where TQuery : IQuery<TResponse>;
+// Defines the handler that executes one command or query.
+// The mediator resolves its matching handler from DI; business use cases implement these contracts.

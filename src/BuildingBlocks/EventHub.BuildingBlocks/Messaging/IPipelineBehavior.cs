@@ -15,3 +15,5 @@ public interface IPipelineBehavior<in TRequest, TResponse>
         RequestHandlerContinuation<TResponse> continuation,
         CancellationToken cancellationToken);
 }
+// Defines middleware around a mediator handler.
+// Each behavior can call the next operation, inspect its Result, or stop the chain early.

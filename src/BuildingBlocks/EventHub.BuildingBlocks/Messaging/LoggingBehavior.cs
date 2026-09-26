@@ -45,3 +45,5 @@ public sealed class LoggingBehavior<TRequest, TResponse>(
         return response;
     }
 }
+// Logs the request name, elapsed time, and success/failure outcome without logging request contents.
+// As the outer behavior, it also observes Results returned early by validation.

@@ -1,3 +1,5 @@
+### Learning requests for the mediator pipeline. Start AppHost first, then send these
+### requests with an HTTP client and watch Identity's Console logs in Aspire.
 @gateway = http://localhost:5100
 
 ### Valid: 200 with the echoed message

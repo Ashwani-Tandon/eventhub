@@ -9,3 +9,5 @@ public sealed record EchoCommand(
     bool ShouldThrow) : ICommand<EchoResponse>;
 
 public sealed record EchoResponse(string Message);
+// Defines the development demo request and its response.
+// FailureType and ShouldThrow intentionally trigger error paths so we can observe the pipeline.

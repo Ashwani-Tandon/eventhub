@@ -64,6 +64,7 @@ public sealed class ValidationBehavior<TRequest, TResponse>(
             errors.Count,
             null);
 
+        // Do not call continuation: the remaining behaviors and handler are skipped.
         return TResponse.Failure(
             Error.Validation(
                 "Validation.Failed",
@@ -71,3 +72,5 @@ public sealed class ValidationBehavior<TRequest, TResponse>(
                 errors));
     }
 }
+// Runs FluentValidation validators and groups failures by field.
+// Invalid input returns a failed Result immediately, preventing the handler from executing.

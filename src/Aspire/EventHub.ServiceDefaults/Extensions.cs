@@ -125,3 +125,5 @@ public static class Extensions
         return app;
     }
 }
+// Configures shared hosting features: telemetry, health endpoints, discovery, and exception handling.
+// APIs call this setup to receive consistent technical defaults across the distributed system.

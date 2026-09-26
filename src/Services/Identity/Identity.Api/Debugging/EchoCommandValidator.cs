@@ -11,3 +11,5 @@ public sealed class EchoCommandValidator : AbstractValidator<EchoCommand>
             .MaximumLength(20);
     }
 }
+// Checks that the demo message is present and at most 20 characters.
+// The mediator validation behavior runs these rules before allowing the handler to execute.

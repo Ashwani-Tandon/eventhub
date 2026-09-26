@@ -33,3 +33,5 @@ internal sealed class Sender(
         return (TResponse)response;
     }
 }
+// Finds the dispatch adapter registered for the request and its response type.
+// This keeps endpoints independent of concrete handlers and avoids reflection during request dispatch.

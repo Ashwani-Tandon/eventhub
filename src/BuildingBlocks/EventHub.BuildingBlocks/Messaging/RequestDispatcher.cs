@@ -35,6 +35,8 @@ internal sealed class RequestDispatcher<TRequest, TResponse> : IRequestDispatche
             .Reverse()
             .ToArray();
 
+        // Start with the handler, then wrap from the inside out. Reversing registration
+        // order makes Logging the outermost behavior and therefore the first to execute.
         RequestHandlerContinuation<TResponse> next =
             token => handler.Handle(typedRequest, token);
 
@@ -47,3 +49,5 @@ internal sealed class RequestDispatcher<TRequest, TResponse> : IRequestDispatche
         return await next(cancellationToken);
     }
 }
+// Resolves the typed handler and wraps it with the registered pipeline behaviors.
+// Adapters are created at startup; this class runs Logging -> Validation -> Performance -> handler.

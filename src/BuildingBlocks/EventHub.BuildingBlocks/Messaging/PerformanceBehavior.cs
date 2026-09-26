@@ -49,3 +49,5 @@ public sealed class PerformanceBehavior<TRequest, TResponse>(
         return response;
     }
 }
+// Measures the handler portion of the pipeline with TimeProvider.
+// Requests taking more than 500 ms produce a warning to help locate slow use cases.

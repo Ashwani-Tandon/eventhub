@@ -47,3 +47,5 @@ public static class DebugEndpoints
 
     private sealed record EchoRequest(string Message);
 }
+// Maps POST /debug/echo and translates HTTP input into an EchoCommand.
+// It sends the command through ISender and maps its Result back to HTTP; Program enables it only in Development.

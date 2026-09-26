@@ -49,6 +49,8 @@ public static class MediatorServiceCollectionExtensions
         IServiceCollection services,
         TypeInfo implementationType)
     {
+        // Reflection is limited to startup registration. Each adapter preserves the
+        // request/response generic types needed to resolve a strongly typed handler.
         foreach (var serviceType in implementationType.ImplementedInterfaces
                      .Where(static type =>
                          type.IsGenericType
@@ -80,3 +82,5 @@ public static class MediatorServiceCollectionExtensions
         }
     }
 }
+// Registers handlers, validators, and typed dispatch adapters by scanning supplied assemblies at startup.
+// Also registers the behaviors in their execution order so each service shares the same pipeline.

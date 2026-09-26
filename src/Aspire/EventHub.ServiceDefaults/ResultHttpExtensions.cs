@@ -50,3 +50,5 @@ public static class ResultHttpExtensions
             extensions: extensions);
     }
 }
+// Translates handler Results into HTTP responses at the API boundary.
+// Success becomes 200/204; expected failures become consistent ProblemDetails with matching status codes.

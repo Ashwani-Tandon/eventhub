@@ -19,3 +19,5 @@ public sealed class Result : IResult<Result>
     public static Result Failure(Error error) =>
         new(false, error ?? throw new ArgumentNullException(nameof(error)));
 }
+// Represents success or an expected failure for an operation with no returned data.
+// Private construction ensures a failure carries an Error and success carries none.

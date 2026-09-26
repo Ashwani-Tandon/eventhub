@@ -32,3 +32,5 @@ public sealed record Error(string Code, string Message, ErrorType Type)
     public static Error Unprocessable(string code, string message) =>
         new(code, message, ErrorType.Unprocessable);
 }
+// Describes an expected failure using a stable code, readable message, and category.
+// Validation can also carry field errors; HTTP translation belongs in ServiceDefaults.

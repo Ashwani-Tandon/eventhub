@@ -10,3 +10,5 @@ public enum ErrorType
     Unavailable,
     Unprocessable
 }
+// Lists the expected failure categories understood by the shared HTTP mapper.
+// This keeps handlers independent of HTTP status codes.

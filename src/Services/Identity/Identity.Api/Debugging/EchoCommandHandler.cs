@@ -63,3 +63,5 @@ public sealed class EchoCommandHandler(
             _ => throw new ArgumentOutOfRangeException(nameof(errorType), errorType, null)
         };
 }
+// Executes the demo command by echoing a message or triggering a requested failure.
+// Its entry log proves whether validation allowed execution; this is a learning endpoint.

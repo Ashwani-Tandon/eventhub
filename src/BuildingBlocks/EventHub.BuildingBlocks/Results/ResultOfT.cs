@@ -27,3 +27,5 @@ public sealed class Result<TValue> : IResult<Result<TValue>>
     public static Result<TValue> Failure(Error error) =>
         new(default, false, error ?? throw new ArgumentNullException(nameof(error)));
 }
+// Represents success with a value, or an expected failure with an Error.
+// Reading Value on failure throws because the caller must check the outcome first.

@@ -27,6 +27,8 @@ working code. So:
 - Resilience rules in `docs/SPEC.md` §14 apply to every outbound call.
 - After each step, **explain** what was built and why (see "Finishing a step").
 - Never hide a concept behind a library without saying what the library does.
+- Add a short purpose comment at the top of each new code file explaining what it does and why it exists.
+  Explain non-obvious functions or control flow with concise comments to support the owner's learning.
 
 ## Working one step at a time
 
