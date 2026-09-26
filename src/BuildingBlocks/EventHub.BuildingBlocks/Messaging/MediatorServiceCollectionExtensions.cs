@@ -1,3 +1,5 @@
+// Registers handlers, validators, and typed dispatch adapters by scanning supplied assemblies at startup.
+// Also registers the behaviors in their execution order so each service shares the same pipeline.
 using System.Reflection;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -5,8 +7,14 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace EventHub.BuildingBlocks.Messaging;
 
+/// <summary>
+/// Registers handlers, validators, and typed dispatch adapters by scanning supplied assemblies at startup. Also registers the behaviors in their execution order so each service shares the same pipeline.
+/// </summary>
 public static class MediatorServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers handlers and validators by scanning the supplied assemblies, then installs Logging, Validation, and Performance in order.
+    /// </summary>
     public static IServiceCollection AddMediator(
         this IServiceCollection services,
         params Assembly[] assemblies)
@@ -45,6 +53,9 @@ public static class MediatorServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers each handler's request/response pair and creates its typed dispatch adapter at startup.
+    /// </summary>
     private static void RegisterHandlers(
         IServiceCollection services,
         TypeInfo implementationType)
@@ -68,6 +79,9 @@ public static class MediatorServiceCollectionExtensions
         }
     }
 
+    /// <summary>
+    /// Registers implemented validator interfaces so the validation behavior can resolve all rules for a request.
+    /// </summary>
     private static void RegisterClosedInterfaces(
         IServiceCollection services,
         TypeInfo implementationType,
@@ -82,5 +96,3 @@ public static class MediatorServiceCollectionExtensions
         }
     }
 }
-// Registers handlers, validators, and typed dispatch adapters by scanning supplied assemblies at startup.
-// Also registers the behaviors in their execution order so each service shares the same pipeline.

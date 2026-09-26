@@ -1,11 +1,19 @@
+// Maps POST /debug/echo and translates HTTP input into an EchoCommand.
+// It sends the command through ISender and maps its Result back to HTTP; Program enables it only in Development.
 using EventHub.BuildingBlocks.Messaging;
 using EventHub.BuildingBlocks.Results;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Identity.Api.Debugging;
 
+/// <summary>
+/// Maps POST /debug/echo and translates HTTP input into an EchoCommand. It sends the command through ISender and maps its Result back to HTTP; Program enables it only in Development.
+/// </summary>
 public static class DebugEndpoints
 {
+    /// <summary>
+    /// Registers the development echo endpoint used to observe mediator behaviors and error mapping.
+    /// </summary>
     public static IEndpointRouteBuilder MapDebugEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
@@ -15,6 +23,9 @@ public static class DebugEndpoints
         return endpoints;
     }
 
+    /// <summary>
+    /// Reads the development echo body, sends its command through the mediator, and maps the returned Result to HTTP.
+    /// </summary>
     private static async Task<Microsoft.AspNetCore.Http.IResult> HandleEchoAsync(
         [FromBody] EchoRequest request,
         [FromQuery] string? fail,
@@ -45,7 +56,8 @@ public static class DebugEndpoints
         return result.ToHttpResult();
     }
 
+    /// <summary>
+    /// Maps POST /debug/echo and translates HTTP input into an EchoCommand. It sends the command through ISender and maps its Result back to HTTP; Program enables it only in Development.
+    /// </summary>
     private sealed record EchoRequest(string Message);
 }
-// Maps POST /debug/echo and translates HTTP input into an EchoCommand.
-// It sends the command through ISender and maps its Result back to HTTP; Program enables it only in Development.

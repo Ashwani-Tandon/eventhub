@@ -5,11 +5,11 @@ following the same process.
 
 ## The three files that drive this project
 
-| File | Role |
-|---|---|
-| `docs/SPEC.md` | **What** to build. Source of truth. Requirement IDs (`FR-*`, `AR-*`, `SD-*`, `NFR-*`). |
+| File                     | Role                                                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `docs/SPEC.md`           | **What** to build. Source of truth. Requirement IDs (`FR-*`, `AR-*`, `SD-*`, `NFR-*`).                             |
 | `docs/EXECUTION_PLAN.md` | **In what order**, and how each step is proven. The board is authoritative; detail status is synchronized with it. |
-| `AGENTS.md` | **How** to work (this file). |
+| `AGENTS.md`              | **How** to work (this file).                                                                                       |
 
 Supporting files created along the way live in `docs/`: `DECISIONS.md` (why things are the way they
 are), `LEARNING.md` (what the owner learned per step), `PROJECT_STRUCTURE.md`, `README.md`, `DEMO.md`.
@@ -24,6 +24,10 @@ working code. So:
   thin; business rules live in the Domain.
 - Prefer **clear, explicit code** over clever abstractions. Manual mapping, no reflection magic beyond
   handler registration.
+- For new or modified HTTP endpoints, declare parameter sources explicitly with `[FromBody]`,
+  `[FromRoute]`, `[FromQuery]`, `[FromHeader]`, and `[FromServices]` as appropriate so the owner can
+  see where to enter values in Postman. `CancellationToken` remains framework-provided request context;
+  never label it as client input or a DI service. Explain that distinction beside the endpoint.
 - Resilience rules in `docs/SPEC.md` §14 apply to every outbound call.
 - After each step, **explain** what was built and why (see "Finishing a step").
 - Never hide a concept behind a library without saying what the library does.
@@ -63,9 +67,9 @@ Do **not** start the next step unless asked.
 - Commit: `Step-N: <scope>`, unless the owner explicitly defers commits. Record the deferral on the
   board and leave the work available for the owner's later commit.
 - Give the owner a short summary:
-  - what was built (files, endpoints)
-  - the 2–4 concepts it demonstrates and **why** it was done this way
-  - one "break it on purpose" experiment to try, and what should happen
+    - what was built (files, endpoints)
+    - the 2–4 concepts it demonstrates and **why** it was done this way
+    - one "break it on purpose" experiment to try, and what should happen
 - Append 3–5 lines to `docs/LEARNING.md` for that step.
 
 ## When the spec and reality disagree

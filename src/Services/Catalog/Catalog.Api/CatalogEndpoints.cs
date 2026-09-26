@@ -13,8 +13,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Catalog.Api;
 
+/// <summary>
+/// Declares Catalog's public event API and separately guarded internal reservation API. Endpoints only identify HTTP parameter sources, send CQRS requests, and map Results to responses.
+/// </summary>
 public static class CatalogEndpoints
 {
+    /// <summary>
+    /// Registers six public event endpoints and two protected internal reservation endpoints.
+    /// </summary>
     public static void MapCatalogEndpoints(this WebApplication app)
     {
         app.MapGet("/events", async ([FromQuery] string? search, [FromQuery] string? category,
@@ -68,6 +74,22 @@ public static class CatalogEndpoints
     }
 }
 
-public sealed record EventInput(string Title, string Description, string Category, string Venue,
-    string City, DateTimeOffset StartsAt, decimal Price, int Capacity);
-public sealed record ReserveSeatsInput(Guid ReservationId, int Quantity);
+/// <summary>
+/// Client-editable event fields. Ownership and booked-seat counts are assigned by the server, never accepted from this body.
+/// </summary>
+public sealed record EventInput(
+    string Title,
+    string Description,
+    string Category,
+    string Venue,
+    string City,
+    DateTimeOffset StartsAt,
+    decimal Price,
+    int Capacity);
+
+/// <summary>
+/// Booking's stable reservation identifier and requested ticket quantity; the user's identity comes from the validated JWT.
+/// </summary>
+public sealed record ReserveSeatsInput(
+    Guid ReservationId,
+    int Quantity);

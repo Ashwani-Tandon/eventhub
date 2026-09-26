@@ -1,8 +1,13 @@
+// Measures the handler portion of the pipeline with TimeProvider.
+// Requests taking more than 500 ms produce a warning to help locate slow use cases.
 using EventHub.BuildingBlocks.Results;
 using Microsoft.Extensions.Logging;
 
 namespace EventHub.BuildingBlocks.Messaging;
 
+/// <summary>
+/// Measures the handler portion of the pipeline with TimeProvider. Requests taking more than 500 ms produce a warning to help locate slow use cases.
+/// </summary>
 public sealed class PerformanceBehavior<TRequest, TResponse>(
     ILogger<PerformanceBehavior<TRequest, TResponse>> logger,
     TimeProvider timeProvider)
@@ -24,6 +29,9 @@ public sealed class PerformanceBehavior<TRequest, TResponse>(
             new EventId(1201, nameof(LogSlowRequest)),
             "Mediator request {RequestName} was slow: {ElapsedMilliseconds} ms");
 
+    /// <summary>
+    /// Measures the downstream handler with TimeProvider and warns when it exceeds 500 milliseconds.
+    /// </summary>
     public async Task<TResponse> Handle(
         TRequest request,
         RequestHandlerContinuation<TResponse> continuation,
@@ -49,5 +57,3 @@ public sealed class PerformanceBehavior<TRequest, TResponse>(
         return response;
     }
 }
-// Measures the handler portion of the pipeline with TimeProvider.
-// Requests taking more than 500 ms produce a warning to help locate slow use cases.

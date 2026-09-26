@@ -7,14 +7,17 @@ using FluentValidation;
 
 namespace Catalog.Application.Features.GetEventById;
 
-public sealed record GetEventByIdQuery(int Id) : IQuery<EventDto>;
-public sealed class GetEventByIdQueryValidator : AbstractValidator<GetEventByIdQuery>
-{
-    public GetEventByIdQueryValidator() => RuleFor(x => x.Id).GreaterThan(0);
-}
+/// <summary>
+/// Reads a public event DTO and returns NotFound when its identifier does not exist.
+/// </summary>
 public sealed class GetEventByIdQueryHandler(IEventQueries queries) : IQueryHandler<GetEventByIdQuery, EventDto>
 {
-    public async Task<Result<EventDto>> Handle(GetEventByIdQuery request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Reads a public event DTO and returns NotFound when its identifier does not exist.
+    /// </summary>
+    public async Task<Result<EventDto>> Handle(
+        GetEventByIdQuery request,
+        CancellationToken cancellationToken)
     {
         var eventItem = await queries.GetAsync(request.Id, cancellationToken);
         return eventItem is null ? Result<EventDto>.Failure(EventErrors.NotFound) : Result<EventDto>.Success(eventItem);

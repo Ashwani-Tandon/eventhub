@@ -9,8 +9,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+
 namespace Microsoft.Extensions.Hosting;
 
+/// <summary>
+/// Registers identical token validation and policies in every service. APIs use the same signing settings but validate each request independently of the gateway.
+/// </summary>
 public sealed class JwtOptions
 {
     public const string SectionName = "Jwt";
@@ -19,20 +23,39 @@ public sealed class JwtOptions
     [Required] public string Audience { get; set; } = "eventhub";
     [Range(120, 120)] public int LifetimeMinutes { get; set; } = 120;
 }
+
+/// <summary>
+/// Registers identical token validation and policies in every service. APIs use the same signing settings but validate each request independently of the gateway.
+/// </summary>
 public static class AuthPolicies
 {
     public const string Organizer = "Organizer";
+
     public const string Admin = "Admin";
 }
+
+/// <summary>
+/// Registers identical token validation and policies in every service. APIs use the same signing settings but validate each request independently of the gateway.
+/// </summary>
 public static class TokenClaims
 {
     public const string Subject = "sub";
+
     public const string Email = "email";
+
     public const string Name = "name";
+
     public const string Role = "role";
 }
+
+/// <summary>
+/// Registers identical token validation and policies in every service. APIs use the same signing settings but validate each request independently of the gateway.
+/// </summary>
 public static class AuthenticationExtensions
 {
+    /// <summary>
+    /// Configures token signature, issuer, audience, and expiry checks; registers role policies and access to the signed user claims.
+    /// </summary>
     public static TBuilder AddEventHubAuth<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.Services.AddOptions<JwtOptions>().BindConfiguration(JwtOptions.SectionName)
@@ -66,11 +89,21 @@ public static class AuthenticationExtensions
         return builder;
     }
 }
+
+/// <summary>
+/// Registers identical token validation and policies in every service. APIs use the same signing settings but validate each request independently of the gateway.
+/// </summary>
 internal sealed class HttpCurrentUser(IHttpContextAccessor accessor) : ICurrentUserProfile
 {
     private ClaimsPrincipal? Principal => accessor.HttpContext?.User.Identity?.IsAuthenticated == true ? accessor.HttpContext.User : null;
-    public Guid? UserId => Guid.TryParse(Principal?.FindFirstValue(TokenClaims.Subject), out var id) ? id : null;
+
+    public Guid? UserId => Guid.TryParse(
+        Principal?.FindFirstValue(TokenClaims.Subject),
+        out var id) ? id : null;
+
     public string? Role => Principal?.FindFirstValue(TokenClaims.Role);
+
     public string? Email => Principal?.FindFirstValue(TokenClaims.Email);
+
     public string? FullName => Principal?.FindFirstValue(TokenClaims.Name);
 }

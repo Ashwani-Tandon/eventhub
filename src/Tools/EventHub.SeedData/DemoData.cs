@@ -2,19 +2,51 @@
 // Fixed identifiers and random seed keep cross-service references and demo totals aligned.
 namespace EventHub.SeedData;
 
-public sealed record SeedEvent(int Id, string Title, string Description, string Category, string Venue,
-    string City, DateTimeOffset StartsAt, decimal Price, int Capacity, Guid OrganizerId,
+/// <summary>
+/// Development seed fields shared between the service seeds so event references and booked-seat totals agree.
+/// </summary>
+public sealed record SeedEvent(
+    int Id,
+    string Title,
+    string Description,
+    string Category,
+    string Venue,
+    string City,
+    DateTimeOffset StartsAt,
+    decimal Price,
+    int Capacity,
+    Guid OrganizerId,
     DateTimeOffset CreatedAt);
-public sealed record SeedBooking(Guid Id, int EventId, Guid AttendeeId, int Quantity, string Status,
+
+/// <summary>
+/// Development seed fields shared between the service seeds so event references and booked-seat totals agree.
+/// </summary>
+public sealed record SeedBooking(
+    Guid Id,
+    int EventId,
+    Guid AttendeeId,
+    int Quantity,
+    string Status,
     DateTimeOffset BookedAt);
-public sealed record DemoDataSet(IReadOnlyList<SeedEvent> Events, IReadOnlyList<SeedBooking> Bookings);
+
+/// <summary>
+/// Development seed fields shared between the service seeds so event references and booked-seat totals agree.
+/// </summary>
+public sealed record DemoDataSet(
+    IReadOnlyList<SeedEvent> Events,
+    IReadOnlyList<SeedBooking> Bookings);
 
 public static class DemoData
 {
     public const string Confirmed = "Confirmed";
+
     public const string Cancelled = "Cancelled";
+
     private const int RandomSeed = 20260926;
 
+    /// <summary>
+    /// Builds matching deterministic event and booking records relative to the supplied date.
+    /// </summary>
     public static DemoDataSet Generate(DateTimeOffset now)
     {
         var random = new Random(RandomSeed);
@@ -53,6 +85,9 @@ public static class DemoData
         return new DemoDataSet(events, bookings);
     }
 
+    /// <summary>
+    /// Builds a stable booking identifier from its sequence number and the fixed seed.
+    /// </summary>
     private static Guid DeterministicGuid(int value)
     {
         var bytes = new byte[16];

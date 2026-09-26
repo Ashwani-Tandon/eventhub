@@ -6,9 +6,17 @@ using Identity.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+
 namespace Identity.Infrastructure;
+
+/// <summary>
+/// Registers SQL adapters and migrates before development seeding. This adapter connects the application ports to the hosting infrastructure.
+/// </summary>
 public static class IdentityRegistration
 {
+    /// <summary>
+    /// Wires Identity's SQL context, repositories, salted password hasher, and signed-token generator into dependency injection.
+    /// </summary>
     public static void AddIdentityInfrastructure(this IHostApplicationBuilder builder)
     {
         builder.AddSqlServerDbContext<IdentityDbContext>("identitydb", configureDbContextOptions: options =>
@@ -20,7 +28,13 @@ public static class IdentityRegistration
         builder.Services.AddScoped<IPasswordHasher, PasswordHasherAdapter>();
         builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
     }
-    public static async Task InitializeIdentityAsync(this IServiceProvider services, CancellationToken cancellationToken)
+
+    /// <summary>
+    /// Applies migrations before inserting the five demo users, and skips seeding when users already exist.
+    /// </summary>
+    public static async Task InitializeIdentityAsync(
+        this IServiceProvider services,
+        CancellationToken cancellationToken)
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
@@ -29,6 +43,7 @@ public static class IdentityRegistration
         {
             return;
         }
+
         var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
         var clock = scope.ServiceProvider.GetRequiredService<TimeProvider>();
         var entries = new (Guid Id, string Email, string Name, string Role)[]

@@ -8,9 +8,19 @@ using Identity.Domain;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+
 namespace Identity.Infrastructure;
-public sealed class JwtTokenGenerator(IOptions<JwtOptions> options, TimeProvider clock) : IJwtTokenGenerator
+
+/// <summary>
+/// Signs a two-hour access token with explicit profile claims. This adapter connects the application ports to the hosting infrastructure.
+/// </summary>
+public sealed class JwtTokenGenerator(
+    IOptions<JwtOptions> options,
+    TimeProvider clock) : IJwtTokenGenerator
 {
+    /// <summary>
+    /// Creates a signed token containing the user's current profile and an explicit expiry.
+    /// </summary>
     public LoginResponse Generate(User user)
     {
         var now = clock.GetUtcNow();

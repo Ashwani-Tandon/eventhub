@@ -5,11 +5,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Catalog.Infrastructure;
 
+/// <summary>
+/// Owns Catalog's Events and SeatReservations tables, their relationship, and database constraints on capacity and reservation state.
+/// </summary>
 public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options) : DbContext(options)
 {
     public DbSet<Event> Events => Set<Event>();
+
     public DbSet<SeatReservation> SeatReservations => Set<SeatReservation>();
 
+    /// <summary>
+    /// Configures SQL column limits, event-to-reservation ownership, and constraints that keep seat counts between zero and capacity.
+    /// </summary>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var eventItem = modelBuilder.Entity<Event>();

@@ -52,12 +52,12 @@ The arrows mean “may reference.” Domain does not know about databases, HTTP,
 Core. Application describes use cases and the interfaces it needs. Infrastructure implements those
 interfaces. API assembles the pieces and translates HTTP to commands and queries.
 
-| Layer | Purpose | Contains | Must not contain |
-|---|---|---|---|
-| Domain | Protect business rules and state | Entities, value objects, domain errors and methods | EF Core, HTTP, ASP.NET Core, database code |
-| Application | Express the system's use cases | Commands, queries, handlers, validators, DTOs, ports | Concrete database or HTTP-client implementations |
-| Infrastructure | Connect use cases to external technology | EF Core, repositories, HTTP clients, token/password/payment adapters | HTTP endpoints or business decisions |
-| API | Expose the service and compose dependencies | Minimal endpoints, authentication policies, dependency registration | Business rules or direct database manipulation |
+| Layer          | Purpose                                     | Contains                                                             | Must not contain                                 |
+| -------------- | ------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------ |
+| Domain         | Protect business rules and state            | Entities, value objects, domain errors and methods                   | EF Core, HTTP, ASP.NET Core, database code       |
+| Application    | Express the system's use cases              | Commands, queries, handlers, validators, DTOs, ports                 | Concrete database or HTTP-client implementations |
+| Infrastructure | Connect use cases to external technology    | EF Core, repositories, HTTP clients, token/password/payment adapters | HTTP endpoints or business decisions             |
+| API            | Expose the service and compose dependencies | Minimal endpoints, authentication policies, dependency registration  | Business rules or direct database manipulation   |
 
 This separation makes the important rules independent of the technologies used to deliver and store
 them. The project references act as a compile-time guard against dependencies pointing outward.
@@ -103,41 +103,41 @@ the service that owns the database.
 
 ### Identity
 
-| Project | Purpose |
-|---|---|
-| `Identity.Domain` | Owns the `User` entity and rules around identity state and roles. |
-| `Identity.Application` | Registration, login, current-user lookup, user listing, and role-change use cases; owns token, password-hashing, and persistence ports. |
-| `Identity.Infrastructure` | User database access, password hashing, JWT generation, migrations, and demo-user seeding. |
-| `Identity.Api` | `/auth/*` and `/users/*` endpoints, authentication/authorization setup, and dependency composition. |
+| Project                   | Purpose                                                                                                                                 |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `Identity.Domain`         | Owns the `User` entity and rules around identity state and roles.                                                                       |
+| `Identity.Application`    | Registration, login, current-user lookup, user listing, and role-change use cases; owns token, password-hashing, and persistence ports. |
+| `Identity.Infrastructure` | User database access, password hashing, JWT generation, migrations, and demo-user seeding.                                              |
+| `Identity.Api`            | `/auth/*` and `/users/*` endpoints, authentication/authorization setup, and dependency composition.                                     |
 
 ### Catalog
 
-| Project | Purpose |
-|---|---|
-| `Catalog.Domain` | Owns events, capacity rules, ownership-sensitive state, and reservation state. |
-| `Catalog.Application` | Event CRUD/search and reserve/release use cases; owns repository and query ports. |
-| `Catalog.Infrastructure` | Catalog database, EF migrations, atomic seat updates, projections, and event seeding. |
-| `Catalog.Api` | Public `/events/*` endpoints plus protected service-only `/internal/*` reservation endpoints. |
+| Project                  | Purpose                                                                                       |
+| ------------------------ | --------------------------------------------------------------------------------------------- |
+| `Catalog.Domain`         | Owns events, capacity rules, ownership-sensitive state, and reservation state.                |
+| `Catalog.Application`    | Event CRUD/search and reserve/release use cases; owns repository and query ports.             |
+| `Catalog.Infrastructure` | Catalog database, EF migrations, atomic seat updates, projections, and event seeding.         |
+| `Catalog.Api`            | Public `/events/*` endpoints plus protected service-only `/internal/*` reservation endpoints. |
 
 ### Booking
 
-| Project | Purpose |
-|---|---|
-| `Booking.Domain` | Owns booking and cancellation state transitions and their invariants. |
-| `Booking.Application` | Create/cancel/list/statistics use cases; owns Catalog-client, payment, repository, and query ports. |
+| Project                  | Purpose                                                                                                         |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `Booking.Domain`         | Owns booking and cancellation state transitions and their invariants.                                           |
+| `Booking.Application`    | Create/cancel/list/statistics use cases; owns Catalog-client, payment, repository, and query ports.             |
 | `Booking.Infrastructure` | Booking database, migrations, Catalog HTTP adapter, fake payment adapter, idempotency persistence, and seeding. |
-| `Booking.Api` | `/bookings/*` endpoints, policies, and dependency composition. |
+| `Booking.Api`            | `/bookings/*` endpoints, policies, and dependency composition.                                                  |
 
 ### Agent
 
 The Agent has no Domain project because it owns no business entities or database. It must act through
 the same Catalog and Booking APIs as the logged-in user.
 
-| Project | Purpose |
-|---|---|
-| `Agent.Application` | Chat use case, tool definitions, conversation contracts, and Catalog/Booking API ports. |
-| `Agent.Infrastructure` | Ollama integration and authenticated HTTP clients that implement the application ports. |
-| `Agent.Api` | `/agent/*` HTTP endpoint, dependency composition, authentication, timeout, and concurrency limits. |
+| Project                | Purpose                                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------------------------- |
+| `Agent.Application`    | Chat use case, tool definitions, conversation contracts, and Catalog/Booking API ports.            |
+| `Agent.Infrastructure` | Ollama integration and authenticated HTTP clients that implement the application ports.            |
+| `Agent.Api`            | `/agent/*` HTTP endpoint, dependency composition, authentication, timeout, and concurrency limits. |
 
 ## Request flow examples
 

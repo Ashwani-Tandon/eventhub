@@ -1,6 +1,8 @@
+// Configures shared hosting features: telemetry, health endpoints, discovery, and exception handling.
+// APIs call this setup to receive consistent technical defaults across the distributed system.
+using EventHub.ServiceDefaults;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using EventHub.ServiceDefaults;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -14,11 +16,18 @@ namespace Microsoft.Extensions.Hosting;
 // Adds common Aspire services: service discovery, health checks, and OpenTelemetry.
 // This project should be referenced by each service project in your solution.
 // To learn more about using this project, see https://aka.ms/aspire/service-defaults
+/// <summary>
+/// Configures shared hosting features: telemetry, health endpoints, discovery, and exception handling. APIs call this setup to receive consistent technical defaults across the distributed system.
+/// </summary>
 public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
+
     private const string AlivenessEndpointPath = "/alive";
 
+    /// <summary>
+    /// Registers tracing, metrics, health checks, discovery, and common ProblemDetails handling for each hosted API.
+    /// </summary>
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.ConfigureOpenTelemetry();
@@ -42,6 +51,9 @@ public static class Extensions
         return builder;
     }
 
+    /// <summary>
+    /// Collects server, HTTP-client, and runtime telemetry; excludes routine health polling from traces.
+    /// </summary>
     public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.Logging.AddOpenTelemetry(logging =>
@@ -76,6 +88,9 @@ public static class Extensions
         return builder;
     }
 
+    /// <summary>
+    /// Enables OTLP export only when Aspire supplies an exporter endpoint.
+    /// </summary>
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
@@ -95,6 +110,9 @@ public static class Extensions
         return builder;
     }
 
+    /// <summary>
+    /// Registers a live-process check; service adapters can add dependency checks for readiness.
+    /// </summary>
     public static TBuilder AddDefaultHealthChecks<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.Services.AddHealthChecks()
@@ -104,6 +122,9 @@ public static class Extensions
         return builder;
     }
 
+    /// <summary>
+    /// Installs central exception handling and exposes development readiness and liveness routes.
+    /// </summary>
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
         app.UseExceptionHandler();
@@ -125,5 +146,3 @@ public static class Extensions
         return app;
     }
 }
-// Configures shared hosting features: telemetry, health endpoints, discovery, and exception handling.
-// APIs call this setup to receive consistent technical defaults across the distributed system.

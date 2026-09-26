@@ -8,23 +8,26 @@ using FluentValidation;
 
 namespace Catalog.Application.Features.ReserveSeats;
 
-public sealed record ReserveSeatsCommand(int EventId, Guid ReservationId, int Quantity) : ICommand<ReservationDto>;
-public sealed class ReserveSeatsCommandValidator : AbstractValidator<ReserveSeatsCommand>
-{
-    public ReserveSeatsCommandValidator()
-    {
-        RuleFor(x => x.EventId).GreaterThan(0);
-        RuleFor(x => x.ReservationId).NotEmpty();
-        RuleFor(x => x.Quantity).GreaterThan(0);
-    }
-}
-
-public sealed class ReserveSeatsCommandHandler(IEventRepository events, ICurrentUser currentUser,
+/// <summary>
+/// Uses the current user and repository transaction to hold seats or return a matching reservation replay.
+/// </summary>
+public sealed class ReserveSeatsCommandHandler(
+    IEventRepository events,
+    ICurrentUser currentUser,
     TimeProvider clock) : ICommandHandler<ReserveSeatsCommand, ReservationDto>
 {
-    public async Task<Result<ReservationDto>> Handle(ReserveSeatsCommand request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Uses the current user and repository transaction to hold seats or return a matching reservation replay.
+    /// </summary>
+    public async Task<Result<ReservationDto>> Handle(
+        ReserveSeatsCommand request,
+        CancellationToken cancellationToken)
     {
-        if (currentUser.UserId is not { } userId) return Result<ReservationDto>.Failure(EventErrors.Unauthenticated);
+        if (currentUser.UserId is not { } userId)
+        {
+            return Result<ReservationDto>.Failure(EventErrors.Unauthenticated);
+        }
+
         var result = await events.TryReserveAsync(request.ReservationId, request.EventId, userId,
             request.Quantity, clock.GetUtcNow(), cancellationToken);
         return result.Outcome switch

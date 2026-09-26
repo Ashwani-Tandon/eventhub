@@ -9,8 +9,14 @@ using Microsoft.Extensions.Hosting;
 
 namespace Catalog.Infrastructure;
 
+/// <summary>
+/// Registers Catalog's SQL adapters and applies migrations before deterministic development seeding. The API composition root calls these methods while Infrastructure owns all EF Core details.
+/// </summary>
 public static class CatalogRegistration
 {
+    /// <summary>
+    /// Registers the service-owned SQL context and implementations of Application ports.
+    /// </summary>
     public static void AddCatalogInfrastructure(this IHostApplicationBuilder builder)
     {
         builder.AddSqlServerDbContext<CatalogDbContext>("catalogdb", configureDbContextOptions: options =>
@@ -22,12 +28,20 @@ public static class CatalogRegistration
         builder.Services.AddScoped<IEventQueries, EventQueries>();
     }
 
-    public static async Task InitializeCatalogAsync(this IServiceProvider services, CancellationToken cancellationToken)
+    /// <summary>
+    /// Applies migrations, seeds an empty database, and checks shared event identifiers.
+    /// </summary>
+    public static async Task InitializeCatalogAsync(
+        this IServiceProvider services,
+        CancellationToken cancellationToken)
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
         await db.Database.MigrateAsync(cancellationToken);
-        if (await db.Events.AnyAsync(cancellationToken)) return;
+        if (await db.Events.AnyAsync(cancellationToken))
+        {
+            return;
+        }
 
         var clock = scope.ServiceProvider.GetRequiredService<TimeProvider>();
         var data = DemoData.Generate(clock.GetUtcNow());
@@ -42,7 +56,9 @@ public static class CatalogRegistration
         for (var index = 0; index < entities.Count; index++)
         {
             if (entities[index].Id != data.Events[index].Id)
+            {
                 throw new InvalidOperationException("Catalog seed event ids no longer match the shared booking seed.");
+            }
         }
 
         db.SeatReservations.AddRange(data.Bookings.Where(x => x.Status == DemoData.Confirmed)

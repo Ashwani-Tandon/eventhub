@@ -1,3 +1,5 @@
+// Routes public API requests to Aspire-discovered services through YARP.
+// Rejects Catalog internal paths before proxying external traffic.
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();

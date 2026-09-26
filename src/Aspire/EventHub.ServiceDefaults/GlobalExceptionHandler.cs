@@ -1,3 +1,5 @@
+// Handles unexpected exceptions centrally and logs their full details.
+// Clients receive a generic 500 ProblemDetails with a trace id, keeping internal stack traces private.
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -5,6 +7,9 @@ using Microsoft.Extensions.Logging;
 
 namespace EventHub.ServiceDefaults;
 
+/// <summary>
+/// Handles unexpected exceptions centrally and logs their full details. Clients receive a generic 500 ProblemDetails with a trace id, keeping internal stack traces private.
+/// </summary>
 public sealed class GlobalExceptionHandler(
     ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
 {
@@ -14,6 +19,9 @@ public sealed class GlobalExceptionHandler(
             new EventId(5000, nameof(LogUnhandledException)),
             "Unhandled exception while processing {Method} {Path}");
 
+    /// <summary>
+    /// Logs an unexpected exception and returns a safe 500 response with a trace id, without exposing the stack to clients.
+    /// </summary>
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,
@@ -44,5 +52,3 @@ public sealed class GlobalExceptionHandler(
         return true;
     }
 }
-// Handles unexpected exceptions centrally and logs their full details.
-// Clients receive a generic 500 ProblemDetails with a trace id, keeping internal stack traces private.

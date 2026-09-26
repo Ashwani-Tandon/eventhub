@@ -1,7 +1,12 @@
+// Finds the dispatch adapter registered for the request and its response type.
+// This keeps endpoints independent of concrete handlers and avoids reflection during request dispatch.
 using EventHub.BuildingBlocks.Results;
 
 namespace EventHub.BuildingBlocks.Messaging;
 
+/// <summary>
+/// Finds the dispatch adapter registered for the request and its response type. This keeps endpoints independent of concrete handlers and avoids reflection during request dispatch.
+/// </summary>
 internal sealed class Sender(
     IServiceProvider serviceProvider,
     IEnumerable<IRequestDispatcher> dispatchers) : ISender
@@ -10,6 +15,9 @@ internal sealed class Sender(
         dispatchers.ToDictionary(
             static dispatcher => (dispatcher.RequestType, dispatcher.ResponseType));
 
+    /// <summary>
+    /// Looks up the request/response dispatch adapter and runs it in the current dependency-injection scope; missing registrations are programming errors.
+    /// </summary>
     public async Task<TResponse> Send<TResponse>(
         IRequest<TResponse> request,
         CancellationToken cancellationToken = default)
@@ -33,5 +41,3 @@ internal sealed class Sender(
         return (TResponse)response;
     }
 }
-// Finds the dispatch adapter registered for the request and its response type.
-// This keeps endpoints independent of concrete handlers and avoids reflection during request dispatch.

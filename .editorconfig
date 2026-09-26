@@ -15,6 +15,18 @@ indent_size = 2
 dotnet_sort_system_directives_first = true
 csharp_style_namespace_declarations = file_scoped:warning
 csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_prefer_braces = true:warning
+dotnet_diagnostic.IDE0011.severity = warning
+csharp_preserve_single_line_statements = false
+csharp_preserve_single_line_blocks = true
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_style_expression_bodied_methods = false:warning
+csharp_style_expression_bodied_constructors = false:warning
+dotnet_diagnostic.IDE0022.severity = warning
+dotnet_diagnostic.IDE0021.severity = warning
 
 # These names are deliberate parts of the Result-pattern API required by SPEC CQ-06.
 [**/Results/Error.cs]

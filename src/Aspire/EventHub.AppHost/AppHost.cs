@@ -1,3 +1,5 @@
+// Starts the SQL resources and service dependency graph through Aspire.
+// Supplies secret parameters and discovery references to the services that need them.
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sqlPassword = builder.AddParameter("sql-password", secret: true);

@@ -7,16 +7,55 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Catalog.Infrastructure;
 
+/// <summary>
+/// Persists event commands and owns the SQL transactions that prevent duplicate holds or seat returns during concurrent calls.
+/// </summary>
 public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, IReservationRepository, IUnitOfWork
 {
-    public Task<Event?> FindAsync(int id, CancellationToken cancellationToken) =>
-        db.Events.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-    public void Add(Event eventItem) => db.Events.Add(eventItem);
-    public void Remove(Event eventItem) => db.Events.Remove(eventItem);
-    public async Task SaveAsync(CancellationToken cancellationToken) => await db.SaveChangesAsync(cancellationToken);
+    /// <summary>
+    /// Loads a tracked event for a command that may change or delete it.
+    /// </summary>
+    public Task<Event?> FindAsync(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        return db.Events.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
 
-    public async Task<ReserveResult> TryReserveAsync(Guid reservationId, int eventId, Guid userId,
-        int quantity, DateTimeOffset now, CancellationToken cancellationToken)
+    /// <summary>
+    /// Tracks a new event for insertion when the unit of work saves.
+    /// </summary>
+    public void Add(Event eventItem)
+    {
+        db.Events.Add(eventItem);
+    }
+
+    /// <summary>
+    /// Tracks an event for deletion when the unit of work saves.
+    /// </summary>
+    public void Remove(Event eventItem)
+    {
+        db.Events.Remove(eventItem);
+    }
+
+    /// <summary>
+    /// Persists the tracked command changes to Catalog's database.
+    /// </summary>
+    public async Task SaveAsync(CancellationToken cancellationToken)
+    {
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Atomically increments seats and inserts a reservation, or returns the matching replay.
+    /// </summary>
+    public async Task<ReserveResult> TryReserveAsync(
+        Guid reservationId,
+        int eventId,
+        Guid userId,
+        int quantity,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
     {
         var strategy = db.Database.CreateExecutionStrategy();
         try
@@ -25,7 +64,10 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
             {
                 var existing = await db.SeatReservations.AsNoTracking()
                     .SingleOrDefaultAsync(x => x.Id == reservationId, cancellationToken);
-                if (existing is not null) return Match(existing, eventId, userId, quantity);
+                if (existing is not null)
+                {
+                    return Match(existing, eventId, userId, quantity);
+                }
 
                 await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
                 var changed = await db.Events.Where(x => x.Id == eventId && x.Capacity - x.SeatsBooked >= quantity)
@@ -55,7 +97,13 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
         }
     }
 
-    public async Task<ReleaseResult> ReleaseAsync(Guid reservationId, Guid userId, DateTimeOffset now,
+    /// <summary>
+    /// Atomically releases a held reservation and returns its seats only once.
+    /// </summary>
+    public async Task<ReleaseResult> ReleaseAsync(
+        Guid reservationId,
+        Guid userId,
+        DateTimeOffset now,
         CancellationToken cancellationToken)
     {
         var strategy = db.Database.CreateExecutionStrategy();
@@ -63,10 +111,20 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
         {
             var reservation = await db.SeatReservations.AsNoTracking()
                 .SingleOrDefaultAsync(x => x.Id == reservationId, cancellationToken);
-            if (reservation is null) return new ReleaseResult(ReleaseOutcome.NoChange, null);
-            if (reservation.UserId != userId) return new ReleaseResult(ReleaseOutcome.Forbidden, reservation);
+            if (reservation is null)
+            {
+                return new ReleaseResult(ReleaseOutcome.NoChange, null);
+            }
+
+            if (reservation.UserId != userId)
+            {
+                return new ReleaseResult(ReleaseOutcome.Forbidden, reservation);
+            }
+
             if (reservation.Status == ReservationStatuses.Released)
+            {
                 return new ReleaseResult(ReleaseOutcome.NoChange, reservation);
+            }
 
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
             var changed = await db.SeatReservations
@@ -87,8 +145,17 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
         });
     }
 
-    private static ReserveResult Match(SeatReservation existing, int eventId, Guid userId, int quantity) =>
-        existing.EventId == eventId && existing.UserId == userId && existing.Quantity == quantity
+    /// <summary>
+    /// Accepts a replay only when its event, user, and quantity match the stored reservation.
+    /// </summary>
+    private static ReserveResult Match(
+        SeatReservation existing,
+        int eventId,
+        Guid userId,
+        int quantity)
+    {
+        return existing.EventId == eventId && existing.UserId == userId && existing.Quantity == quantity
             ? new(ReserveOutcome.Success, existing)
             : new(ReserveOutcome.ReplayMismatch, existing);
+    }
 }

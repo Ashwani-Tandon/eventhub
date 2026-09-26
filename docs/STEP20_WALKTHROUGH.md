@@ -24,23 +24,24 @@ The behavior's `continuation` is the next operation in the chain. Calling it mov
 1. Open Docker Desktop and wait until its engine is running.
 2. Open a terminal in the repository root:
 
-   ```bash
-   cd "/Users/apple/Personal Projects/Event Booking Platform"
-   dotnet run --project src/Aspire/EventHub.AppHost
-   ```
+    ```bash
+    cd "/Users/apple/Personal Projects/Event Booking Platform"
+    dotnet run --project src/Aspire/EventHub.AppHost
+    ```
 
 3. Keep this terminal running. Open the dashboard URL printed by Aspire, including its login token if shown. The dashboard port can change between runs.
 4. On **Resources**, wait for Identity and Gateway to be Running and SQL/database resources to be healthy. The SQL container may take time on this Mac.
 5. Select **Console**, choose **identity** in the Resource selector, and watch its logs. **Structured logs** supports filtering; **Traces** shows the HTTP request journey.
 6. In a second terminal, send a valid request:
 
-   ```bash
-   curl -i -H 'Content-Type: application/json' \
-     -d '{"message":"hello mediator"}' \
-     http://localhost:5100/identity/debug/echo
-   ```
+    ```bash
+    curl -i -H 'Content-Type: application/json' \
+      -d '{"message":"hello mediator"}' \
+      http://localhost:5100/identity/debug/echo
+    ```
 
-   Expect 200 and the echoed message. Identity logs show Logging, Validation, Performance, then the echo handler, followed by completion.
+    Expect 200 and the echoed message. Identity logs show Logging, Validation, Performance, then the echo handler, followed by completion.
+
 7. Change the body to `{"message":""}` and send again. Expect 400 with a `Message` field error. Logs show Logging and Validation, then failure; the handler is skipped.
 8. Add `?fail=NotFound` to the URL to get 404. Add `?throw=true` to get a safe 500 response; inspect the exception in Identity logs.
 9. Press **Control+C** in the first terminal to stop AppHost. The persistent SQL container/storage can remain; stopping the API processes does not erase the databases.

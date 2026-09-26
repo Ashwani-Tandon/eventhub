@@ -1,14 +1,22 @@
 // Translates HTTP requests into commands and queries.
 // Policies protect admin routes; the mediator handles validation and business decisions.
 using EventHub.BuildingBlocks.Messaging;
-using Identity.Application.Features.RegisterUser;
-using Identity.Application.Features.Login;
 using Identity.Application.Features.ChangeUserRole;
 using Identity.Application.Features.GetCurrentUser;
 using Identity.Application.Features.ListUsers;
+using Identity.Application.Features.Login;
+using Identity.Application.Features.RegisterUser;
+
 namespace Identity.Api;
+
+/// <summary>
+/// Translates HTTP requests into commands and queries. Policies protect admin routes; the mediator handles validation and business decisions.
+/// </summary>
 public static class IdentityEndpoints
 {
+    /// <summary>
+    /// Registers the five Identity operations and applies Admin policies to user listing and role changes.
+    /// </summary>
     public static void MapIdentityEndpoints(this WebApplication app)
     {
         app.MapPost("/auth/register", async (RegisterUserCommand command, ISender sender, CancellationToken ct) =>
@@ -23,4 +31,8 @@ public static class IdentityEndpoints
             (await sender.Send(new ChangeUserRoleCommand(id, input.Role), ct)).ToHttpResult()).RequireAuthorization(AuthPolicies.Admin);
     }
 }
+
+/// <summary>
+/// Translates HTTP requests into commands and queries. Policies protect admin routes; the mediator handles validation and business decisions.
+/// </summary>
 public sealed record ChangeRoleInput(string Role);

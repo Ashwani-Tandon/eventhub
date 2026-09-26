@@ -1,8 +1,13 @@
+// Logs the request name, elapsed time, and success/failure outcome without logging request contents.
+// As the outer behavior, it also observes Results returned early by validation.
 using EventHub.BuildingBlocks.Results;
 using Microsoft.Extensions.Logging;
 
 namespace EventHub.BuildingBlocks.Messaging;
 
+/// <summary>
+/// Logs the request name, elapsed time, and success/failure outcome without logging request contents. As the outer behavior, it also observes Results returned early by validation.
+/// </summary>
 public sealed class LoggingBehavior<TRequest, TResponse>(
     ILogger<LoggingBehavior<TRequest, TResponse>> logger,
     TimeProvider timeProvider)
@@ -22,6 +27,9 @@ public sealed class LoggingBehavior<TRequest, TResponse>(
             new EventId(1001, nameof(LogRequestCompleted)),
             "Mediator request {RequestName} completed in {ElapsedMilliseconds} ms with {Outcome}");
 
+    /// <summary>
+    /// Runs the remaining pipeline and logs request name, duration, and success without logging sensitive request contents.
+    /// </summary>
     public async Task<TResponse> Handle(
         TRequest request,
         RequestHandlerContinuation<TResponse> continuation,
@@ -45,5 +53,3 @@ public sealed class LoggingBehavior<TRequest, TResponse>(
         return response;
     }
 }
-// Logs the request name, elapsed time, and success/failure outcome without logging request contents.
-// As the outer behavior, it also observes Results returned early by validation.

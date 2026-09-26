@@ -2,9 +2,9 @@
 // Development startup applies migrations before creating the demo users.
 using EventHub.BuildingBlocks.Messaging;
 using Identity.Api;
+using Identity.Api.Debugging;
 using Identity.Application.Features.Login;
 using Identity.Infrastructure;
-using Identity.Api.Debugging;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -1,10 +1,21 @@
+// Represents success with a value, or an expected failure with an Error.
+// Reading Value on failure throws because the caller must check the outcome first.
 namespace EventHub.BuildingBlocks.Results;
 
+/// <summary>
+/// Represents success with a value, or an expected failure with an Error. Reading Value on failure throws because the caller must check the outcome first.
+/// </summary>
 public sealed class Result<TValue> : IResult<Result<TValue>>
 {
     private readonly TValue? _value;
 
-    private Result(TValue? value, bool isSuccess, Error? error)
+    /// <summary>
+    /// Builds the internal success/error state; public factories control which outcomes callers can create.
+    /// </summary>
+    private Result(
+        TValue? value,
+        bool isSuccess,
+        Error? error)
     {
         _value = value;
         IsSuccess = isSuccess;
@@ -22,10 +33,19 @@ public sealed class Result<TValue> : IResult<Result<TValue>>
             ? _value!
             : throw new InvalidOperationException("The value of a failed result cannot be accessed.");
 
-    public static Result<TValue> Success(TValue value) => new(value, true, null);
+    /// <summary>
+    /// Creates a successful Result; the generic variant also carries the returned value.
+    /// </summary>
+    public static Result<TValue> Success(TValue value)
+    {
+        return new(value, true, null);
+    }
 
-    public static Result<TValue> Failure(Error error) =>
-        new(default, false, error ?? throw new ArgumentNullException(nameof(error)));
+    /// <summary>
+    /// Creates a failed Result with its expected Error, which the HTTP boundary translates into ProblemDetails.
+    /// </summary>
+    public static Result<TValue> Failure(Error error)
+    {
+        return new(default, false, error ?? throw new ArgumentNullException(nameof(error)));
+    }
 }
-// Represents success with a value, or an expected failure with an Error.
-// Reading Value on failure throws because the caller must check the outcome first.

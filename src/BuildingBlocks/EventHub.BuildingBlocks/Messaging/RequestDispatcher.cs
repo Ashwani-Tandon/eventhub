@@ -1,8 +1,13 @@
+// Resolves the typed handler and wraps it with the registered pipeline behaviors.
+// Adapters are created at startup; this class runs Logging -> Validation -> Performance -> handler.
 using EventHub.BuildingBlocks.Results;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EventHub.BuildingBlocks.Messaging;
 
+/// <summary>
+/// Resolves the typed handler and wraps it with the registered pipeline behaviors. Adapters are created at startup; this class runs Logging -> Validation -> Performance -> handler.
+/// </summary>
 internal interface IRequestDispatcher
 {
     Type RequestType { get; }
@@ -15,6 +20,9 @@ internal interface IRequestDispatcher
         CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Resolves the typed handler and wraps it with the registered pipeline behaviors. Adapters are created at startup; this class runs Logging -> Validation -> Performance -> handler.
+/// </summary>
 internal sealed class RequestDispatcher<TRequest, TResponse> : IRequestDispatcher
     where TRequest : IRequest<TResponse>
     where TResponse : IResult<TResponse>
@@ -23,6 +31,9 @@ internal sealed class RequestDispatcher<TRequest, TResponse> : IRequestDispatche
 
     public Type ResponseType => typeof(TResponse);
 
+    /// <summary>
+    /// Resolves the typed handler and wraps it from inside out so behaviors execute in registration order.
+    /// </summary>
     public async Task<object> Dispatch(
         object request,
         IServiceProvider services,
@@ -49,5 +60,3 @@ internal sealed class RequestDispatcher<TRequest, TResponse> : IRequestDispatche
         return await next(cancellationToken);
     }
 }
-// Resolves the typed handler and wraps it with the registered pipeline behaviors.
-// Adapters are created at startup; this class runs Logging -> Validation -> Performance -> handler.

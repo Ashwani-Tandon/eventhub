@@ -2,12 +2,19 @@
 // Domain rules and API validation share these constants without duplicating magic strings.
 namespace Catalog.Domain;
 
+/// <summary>
+/// Defines the only categories accepted by Catalog. Domain rules and API validation share these constants without duplicating magic strings.
+/// </summary>
 public static class Categories
 {
     public const string Music = "Music";
+
     public const string Tech = "Tech";
+
     public const string Sports = "Sports";
+
     public const string Comedy = "Comedy";
+
     public const string Workshop = "Workshop";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -15,5 +22,11 @@ public static class Categories
         Music, Tech, Sports, Comedy, Workshop
     };
 
-    public static bool IsKnown(string category) => All.Contains(category);
+    /// <summary>
+    /// Checks whether a supplied category belongs to Catalog's supported category set.
+    /// </summary>
+    public static bool IsKnown(string category)
+    {
+        return All.Contains(category);
+    }
 }

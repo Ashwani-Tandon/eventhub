@@ -1,22 +1,47 @@
+// Translates handler Results into HTTP responses at the API boundary.
+// Success becomes 200/204; expected failures become consistent ProblemDetails with matching status codes.
 using EventHub.BuildingBlocks.Results;
 
 namespace Microsoft.AspNetCore.Http;
 
+/// <summary>
+/// Translates handler Results into HTTP responses at the API boundary. Success becomes 200/204; expected failures become consistent ProblemDetails with matching status codes.
+/// </summary>
 public static class ResultHttpExtensions
 {
-    public static IResult ToCreatedHttpResult<TValue>(this Result<TValue> result, string location) =>
-        result.IsSuccess ? Results.Created(location, result.Value) : CreateProblem(result.Error!);
+    /// <summary>
+    /// Returns 201 with a resource location on success, or translates the expected error to ProblemDetails.
+    /// </summary>
+    public static IResult ToCreatedHttpResult<TValue>(
+        this Result<TValue> result,
+        string location)
+    {
+        return result.IsSuccess ? Results.Created(location, result.Value) : CreateProblem(result.Error!);
+    }
 
-    public static IResult ToHttpResult(this Result result) =>
-        result.IsSuccess
+    /// <summary>
+    /// Maps the use-case result to its successful HTTP response or typed ProblemDetails failure.
+    /// </summary>
+    public static IResult ToHttpResult(this Result result)
+    {
+        return result.IsSuccess
             ? Results.NoContent()
             : CreateProblem(result.Error!);
+    }
 
-    public static IResult ToHttpResult<TValue>(this Result<TValue> result) =>
-        result.IsSuccess
+    /// <summary>
+    /// Maps the use-case result to its successful HTTP response or typed ProblemDetails failure.
+    /// </summary>
+    public static IResult ToHttpResult<TValue>(this Result<TValue> result)
+    {
+        return result.IsSuccess
             ? Results.Ok(result.Value)
             : CreateProblem(result.Error!);
+    }
 
+    /// <summary>
+    /// Translates ErrorType into HTTP status and includes field messages for validation failures.
+    /// </summary>
     private static IResult CreateProblem(Error error)
     {
         var statusCode = error.Type switch
@@ -53,5 +78,3 @@ public static class ResultHttpExtensions
             extensions: extensions);
     }
 }
-// Translates handler Results into HTTP responses at the API boundary.
-// Success becomes 200/204; expected failures become consistent ProblemDetails with matching status codes.

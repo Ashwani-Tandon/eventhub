@@ -1,9 +1,14 @@
+// Runs FluentValidation validators and groups failures by field.
+// Invalid input returns a failed Result immediately, preventing the handler from executing.
 using EventHub.BuildingBlocks.Results;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 
 namespace EventHub.BuildingBlocks.Messaging;
 
+/// <summary>
+/// Runs FluentValidation validators and groups failures by field. Invalid input returns a failed Result immediately, preventing the handler from executing.
+/// </summary>
 public sealed class ValidationBehavior<TRequest, TResponse>(
     IEnumerable<IValidator<TRequest>> validators,
     ILogger<ValidationBehavior<TRequest, TResponse>> logger)
@@ -23,6 +28,9 @@ public sealed class ValidationBehavior<TRequest, TResponse>(
             new EventId(1101, nameof(LogValidationFailed)),
             "Mediator validation failed for {RequestName} with {ErrorCount} field errors");
 
+    /// <summary>
+    /// Runs all validators, groups errors by field, and stops before the handler when validation fails.
+    /// </summary>
     public async Task<TResponse> Handle(
         TRequest request,
         RequestHandlerContinuation<TResponse> continuation,
@@ -72,5 +80,3 @@ public sealed class ValidationBehavior<TRequest, TResponse>(
                 errors));
     }
 }
-// Runs FluentValidation validators and groups failures by field.
-// Invalid input returns a failed Result immediately, preventing the handler from executing.

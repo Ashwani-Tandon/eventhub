@@ -22,36 +22,36 @@ The backend was started with `dotnet run --project src/Aspire/EventHub.AppHost -
 Requests were sent to `http://localhost:5100/identity`; bearer tokens were kept in memory and are omitted here.
 The matching requests are saved in `identity.http`. No test project or test suite was created.
 
-| Request | Actual status / response |
-|---|---|
-| Login admin, organizer, organizer2, attendee, attendee2 with demo password | Each returned 200 with its correct user and role |
-| Login admin with wrong password | 401; detail `Invalid email or password.`; code `User.InvalidCredentials` |
-| Login unknown email | 401; identical detail and code (request trace ids differ) |
-| GET /auth/me without bearer token | 401 |
-| GET /auth/me with attendee token | 200; id `00000000-0000-0000-0000-000000000004`, email `attendee@demo.com`, fullName `Demo Attendee`, role `Attendee` |
-| GET /users with attendee token | 403 |
-| GET /users with admin token | 200; all five seeded users; no password or hash fields |
-| Register case-normalized duplicate admin email | 409; `This email is already registered.`; code `User.DuplicateEmail` |
-| Register invalid email, empty name, short password | 400 with Email, FullName, and Password field errors |
-| Change role to Guest | 400 with Role field error |
-| Change nonexistent user's role | 404; `User not found.` |
-| Change role with attendee token | 403 |
-| Register new user while supplying extra role: Admin | 201; returned user role was Attendee |
-| GET /auth/me with newly registered token | 200; correct registered profile |
-| GET /auth/me with tampered token | 401 |
+| Request                                                                    | Actual status / response                                                                                             |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Login admin, organizer, organizer2, attendee, attendee2 with demo password | Each returned 200 with its correct user and role                                                                     |
+| Login admin with wrong password                                            | 401; detail `Invalid email or password.`; code `User.InvalidCredentials`                                             |
+| Login unknown email                                                        | 401; identical detail and code (request trace ids differ)                                                            |
+| GET /auth/me without bearer token                                          | 401                                                                                                                  |
+| GET /auth/me with attendee token                                           | 200; id `00000000-0000-0000-0000-000000000004`, email `attendee@demo.com`, fullName `Demo Attendee`, role `Attendee` |
+| GET /users with attendee token                                             | 403                                                                                                                  |
+| GET /users with admin token                                                | 200; all five seeded users; no password or hash fields                                                               |
+| Register case-normalized duplicate admin email                             | 409; `This email is already registered.`; code `User.DuplicateEmail`                                                 |
+| Register invalid email, empty name, short password                         | 400 with Email, FullName, and Password field errors                                                                  |
+| Change role to Guest                                                       | 400 with Role field error                                                                                            |
+| Change nonexistent user's role                                             | 404; `User not found.`                                                                                               |
+| Change role with attendee token                                            | 403                                                                                                                  |
+| Register new user while supplying extra role: Admin                        | 201; returned user role was Attendee                                                                                 |
+| GET /auth/me with newly registered token                                   | 200; correct registered profile                                                                                      |
+| GET /auth/me with tampered token                                           | 401                                                                                                                  |
 
 Decoded demo token example (admin):
 
 ```json
 {
-  "sub": "00000000-0000-0000-0000-000000000001",
-  "email": "admin@demo.com",
-  "name": "Demo Admin",
-  "role": "Admin",
-  "nbf": 1790436822,
-  "exp": 1790444022,
-  "iss": "eventhub-identity",
-  "aud": "eventhub"
+    "sub": "00000000-0000-0000-0000-000000000001",
+    "email": "admin@demo.com",
+    "name": "Demo Admin",
+    "role": "Admin",
+    "nbf": 1790436822,
+    "exp": 1790444022,
+    "iss": "eventhub-identity",
+    "aud": "eventhub"
 }
 ```
 
