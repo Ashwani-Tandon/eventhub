@@ -27,8 +27,13 @@ working code. So:
 - Resilience rules in `docs/SPEC.md` §14 apply to every outbound call.
 - After each step, **explain** what was built and why (see "Finishing a step").
 - Never hide a concept behind a library without saying what the library does.
-- Add a short purpose comment at the top of each new code file explaining what it does and why it exists.
-  Explain non-obvious functions or control flow with concise comments to support the owner's learning.
+- In every step, start each new human-authored file with a **2–3 line purpose explanation** in plain
+  language: what the file/class does, why it exists, and where it fits in the application flow.
+  Use the file format's supported comments (before imports/usings where permitted), or opening prose
+  for documentation. For formats that forbid comments, such as strict JSON, explain the file in the
+  nearest README instead of making it invalid. Leave generated files under their generator's control.
+  Explain non-obvious functions or control flow with concise comments, and keep explanations accurate
+  when the file's responsibilities change.
 
 ## Working one step at a time
 
@@ -41,10 +46,12 @@ When asked to "execute Step-N" (or "do the next step"):
 3. **Claim it.** Set the step's status to `In Progress (<agent or name>, <date>)` on the board **and** in
    its detail section.
 4. **Build.** Work through the step's task checklist, ticking `[x]` as each is done. Stay inside the
-   step's scope; the ⛔ line is a hard boundary.
+   step's scope; the ⛔ line is a hard boundary. Add the required 2–3 line purpose explanation when
+   creating each new human-authored file.
 5. **Verify.** Prove every acceptance criterion: run the command / `.http` request / test and show the
    actual output. A criterion is ticked only with evidence. Criteria marked 👤 need the owner to check
-   in the browser — ask them and wait.
+   in the browser — ask them and wait. Review every new human-authored file for its purpose explanation
+   before finishing the step; use the format-specific handling described above.
 6. **Finish** (below), or record a blocker.
 
 Do **not** start the next step unless asked.

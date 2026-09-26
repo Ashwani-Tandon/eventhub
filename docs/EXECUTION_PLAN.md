@@ -108,6 +108,11 @@ their work is in the "Later — for understanding" list at the end.
     are all `Completed` becomes `Not Started`.
 15. **Learn as you go.** After each step, 3–5 lines in `LEARNING.md`: what was built, why, and one
     "break it on purpose" experiment you tried.
+16. **File purpose explanations.** Every new human-authored file starts with 2–3 plain-language lines
+    explaining what it does, why it exists, and where it fits in the application flow. Use supported
+    comments or opening documentation prose; for formats without comments, document it in the nearest
+    README. Leave generated files to their generator. Verify these explanations before completing
+    each step and keep them accurate when responsibilities change (see `AGENTS.md`).
 
 ---
 
