@@ -37,3 +37,9 @@ dotnet_diagnostic.CA1716.severity = none
 
 [**/Results/ResultOfT.cs]
 dotnet_diagnostic.CA1000.severity = none
+
+# EF migration generators emit column-name arrays in one-time schema operations.
+# Keep generated migrations under generator control instead of rewriting their arrays.
+[**/Migrations/*.cs]
+generated_code = true
+dotnet_diagnostic.CA1861.severity = none

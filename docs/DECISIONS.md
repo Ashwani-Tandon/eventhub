@@ -1,5 +1,21 @@
 # EventHub — Architecture Decisions
 
+## 2026-09-27 — Persist pending seat release before contacting Catalog
+
+**Decision.** Cancellation saves Cancelled and SeatReleasePending together before calling Catalog. A pending replay retries only the idempotent release; a completed replay returns the existing booking.
+
+**Why.** Booking and Catalog own separate databases. Recording the local decision first makes an unavailable Catalog recoverable without a distributed transaction, broker, or outbox. The booking snapshot supplies its event date and owner without a Catalog read.
+
+**Trade-off.** Seats may remain held while the booking is already Cancelled. A caller must repeat cancellation after recovery; there is no automatic background retry in v1.0. If the flag-clear save fails after release, replaying the release remains safe.
+
+## 2026-09-27 — Use stable fake-payment outcomes and bounded Catalog calls
+
+**Decision.** Hash the reservation identity to determine the fake payment outcome and reference, with a Development-only forced decline. Give the typed Catalog client a ten-second total timeout; install the configurable resilience pipeline in Step-17.
+
+**Why.** A repeated payment identity has a stable result without a real payment provider. A bounded HTTP call and explicit unavailable Result let Step-5 prove compensation and recovery without prematurely implementing resilience tuning.
+
+**Trade-off.** Payment is a deterministic demonstration rather than a real financial system. Creation has no durable idempotency claim until Step-16, and an interrupted or unavailable compensation requires diagnosis using the logged reservation identity.
+
 ## 2026-09-26 — Require two identities for internal seat operations
 
 **Decision.** Catalog's internal reserve and release endpoints require both the calling user's signed JWT and a constant-time checked `X-EventHub-Service` credential known only to Booking. YARP exposes only Catalog's `/events` and `/health` routes, never `/internal`.

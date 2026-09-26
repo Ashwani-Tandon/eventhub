@@ -1,0 +1,172 @@
+# Demonstrates Booking's five operations through the gateway, including compensation and outage recovery.
+# Run named login requests first; bearer tokens stay in response references rather than committed files.
+@gateway = http://localhost:5100
+@booking = {{gateway}}/booking
+@eventId = 2
+@password = Demo@123
+
+### Attendee login
+# @name attendeeLogin
+POST {{gateway}}/identity/auth/login
+Content-Type: application/json
+
+{
+  "email": "attendee@demo.com",
+  "password": "{{password}}"
+}
+
+### Second attendee login for ownership checks
+# @name attendee2Login
+POST {{gateway}}/identity/auth/login
+Content-Type: application/json
+
+{
+  "email": "attendee2@demo.com",
+  "password": "{{password}}"
+}
+
+### Organizer login for scoped statistics
+# @name organizerLogin
+POST {{gateway}}/identity/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizer@demo.com",
+  "password": "{{password}}"
+}
+
+### Second organizer login for comparison
+# @name organizer2Login
+POST {{gateway}}/identity/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizer2@demo.com",
+  "password": "{{password}}"
+}
+
+### Admin login for all bookings and statistics
+# @name adminLogin
+POST {{gateway}}/identity/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@demo.com",
+  "password": "{{password}}"
+}
+
+### Baseline seats; compare after creation, compensation, and cancellation
+GET {{gateway}}/catalog/events/{{eventId}}
+
+### Purchase two tickets -> 201 normally; fake payment can decline about 10 percent of attempts with 422
+# @name purchase
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "eventId": {{eventId}},
+  "quantity": 2,
+  "simulatePaymentFailure": false
+}
+
+### Forced development payment failure -> 422, seats restored to their pre-request value
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "eventId": {{eventId}},
+  "quantity": 2,
+  "simulatePaymentFailure": true
+}
+
+### Quantity limit -> 400 field error, no reservation or payment
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "eventId": {{eventId}},
+  "quantity": 11
+}
+
+### Unknown event -> 404
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "eventId": 2147483647,
+  "quantity": 1
+}
+
+### Sold-out event -> 409
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "eventId": 1,
+  "quantity": 1
+}
+
+### My bookings -> 200, newest first; also works while Catalog is stopped
+GET {{booking}}/bookings/mine
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+
+### Another user's cancellation -> 403
+POST {{booking}}/bookings/{{purchase.response.body.$.id}}/cancel
+Authorization: Bearer {{attendee2Login.response.body.$.accessToken}}
+
+### Owner cancellation -> 200 Cancelled; repeat -> same result, seats returned only once
+# @name cancellation
+POST {{booking}}/bookings/{{purchase.response.body.$.id}}/cancel
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+
+### Admin listing with a lifecycle filter
+GET {{booking}}/bookings?status=Cancelled
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+
+### Invalid status -> 400
+GET {{booking}}/bookings?status=Unknown
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+
+### Attendee Admin-list access -> 403
+GET {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+
+### Organizer statistics, only owned event snapshots
+GET {{booking}}/bookings/stats
+Authorization: Bearer {{organizerLogin.response.body.$.accessToken}}
+
+### Organizer2 statistics, a different event scope
+GET {{booking}}/bookings/stats
+Authorization: Bearer {{organizer2Login.response.body.$.accessToken}}
+
+### Admin statistics, all organizers
+GET {{booking}}/bookings/stats
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+
+### Attendee statistics -> 403
+GET {{booking}}/bookings/stats
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+
+### Outage experiment: create a fresh purchase above, then stop only Catalog in Aspire
+# Cancellation -> 503 with Retry-After; GET /bookings/mine shows Cancelled and seatReleasePending=true.
+# Restart Catalog and repeat this request -> 200, seatReleasePending=false; repeat again changes no seats.
+POST {{booking}}/bookings/{{purchase.response.body.$.id}}/cancel
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+
+### Creation while Catalog is stopped -> 503; /bookings/mine and /bookings/stats still work
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "eventId": {{eventId}},
+  "quantity": 1
+}
+
+### Booking readiness, including its SQL dependency
+GET {{booking}}/health

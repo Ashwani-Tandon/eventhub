@@ -74,3 +74,11 @@ A conditional SQL update and reservation row share one transaction, making capac
 Internal seat routes require both the user's JWT and Booking's constant-time checked credential; excluding them from YARP reduces exposure but is not itself authentication.
 The shared fixed-seed generator creates 40 events and 300 future Booking records, so Catalog's booked-seat totals and later Booking data start from the same source.
 Break it on purpose: reserve one seat beyond sold-out event 1; expect 409 and verify `seatsBooked` remains 20.
+
+## Step-5 — Booking and compensating workflows
+
+Booking reserves seats before fake payment and releases them if payment or local persistence fails; this compensates across independent service databases without a distributed transaction.
+Cancellation saves Cancelled with SeatReleasePending first, then releases seats; after a Catalog outage, replay finishes that pending work without applying cancellation rules again.
+Stored event and price snapshots let My Bookings and organizer-scoped statistics work while Catalog is unavailable; read queries use untracked DTO projections.
+The Catalog client forwards the caller's JWT and adds Booking's service credential only to internal seat operations; bounded calls exist now, while creation idempotency and retry pipelines come later.
+Break it on purpose: force payment failure and expect 422 with unchanged seats; stopping Catalog during cancellation gave 503, and restarting then replaying returned seats exactly once.

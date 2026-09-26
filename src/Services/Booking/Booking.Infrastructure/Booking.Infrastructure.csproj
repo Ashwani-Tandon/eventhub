@@ -1,6 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
+    <ProjectReference Include="../../../Aspire/EventHub.ServiceDefaults/EventHub.ServiceDefaults.csproj" />
+    <ProjectReference Include="../../../Tools/EventHub.SeedData/EventHub.SeedData.csproj" />
     <ProjectReference Include="..\Booking.Application\Booking.Application.csproj" />
   </ItemGroup>
 
