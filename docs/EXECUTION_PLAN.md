@@ -44,13 +44,13 @@ number, which is why the board is not in numeric order — **execution order is 
 | **Step-1e** | Ollama + model + tool calling. ⛔ No agent code | 👤 open Ollama · pull model by RAM · curl tool-call test | §3, FR-AGT-06 | Step-1a | model listed · warm answer < 20 s · `tool_calls` returned · :11434 up | Completed (2026-09-25 — evidence: `ollama list`, warm `ollama run` 1.49 s, `/api/tags`, `/api/chat` returned `get_weather` for Delhi) |
 | **Step-2** | Solution skeleton in Clean Architecture layout; Aspire, SQL + 3 DBs, gateway. ⛔ No business code, no test projects | All projects of §15.5 with CA-01…04 references, Directory.Build/Packages.props, AppHost wiring, YARP :5100 | §4, §15.5, AR-01..09, CP-01, NFR-01/02 | Step-1b, Step-1c, Step-1d, Step-1e | builds with 0 warnings · dashboard all Running · 3 DBs survive a restart · 4 health checks via :5100 · no committed secrets | Completed (2026-09-26 — evidence: `dotnet build EventHub.sln`, Aspire dashboard, `gateway.http`, SQL query, restart persistence check) |
 | **Step-20** | BuildingBlocks: mediator, CQRS contracts, behaviors, Result; Result→HTTP mapping. ⛔ No service use cases, no architecture checks (Later) | `ISender`, `ICommand/IQuery` + handlers, 3 behaviors, `Result/Error`, `ToHttpResult()`, global exception handler, dev-only `/debug/echo` | §15.1–15.2, CQ-03/04/06 | Step-2 | echo logs behaviors in order · invalid echo → 400, handler not run · each ErrorType → right status · unexpected exception → 500 ProblemDetails | Completed (2026-09-26 — evidence: `dotnet build EventHub.sln`, `Identity.Api/debug.http`, Aspire console logs) |
-| **Step-3** | Identity service (all 4 layers) + shared JWT validation. ⛔ No UI | `User` entity, 3 commands / 2 queries, JWT + hasher ports, `AddEventHubAuth()`, seed | §6, SD-02, §15.2, CP-10 | Step-20 | 5 users get tokens · claims correct · generic 401 · 403/200 on `/users` · `/auth/me` + 409 duplicate | Not Started |
-| **Step-4** | Catalog service: events CRUD, search, ownership, internal idempotent seat reservations. ⛔ No bookings, no rowVersion | `Event`, `SeatReservation`, 5 commands / 3 queries, `TryReserveAsync`, Booking-only internal endpoints, seed generator | §7 (FR-CAT-01..09), AR-09, SD-03, SD-05, CP-10 | Step-3 | filters + total · 403 attendee / other owner, 200 admin · public/internal authorization proven · 409 overbook · same reservationId twice → seats change once · 400 invalid | Dependent (Step-3) |
+| **Step-3** | Identity service (all 4 layers) + shared JWT validation. ⛔ No UI | `User` entity, 3 commands / 2 queries, JWT + hasher ports, `AddEventHubAuth()`, seed | §6, SD-02, §15.2, CP-10 | Step-20 | 5 users get tokens · claims correct · generic 401 · 403/200 on `/users` · `/auth/me` + 409 duplicate | Completed (2026-09-26 — evidence: `docs/STEP-3-EVIDENCE.md`, `identity.http`; build 0 warnings) |
+| **Step-4** | Catalog service: events CRUD, search, ownership, internal idempotent seat reservations. ⛔ No bookings, no rowVersion | `Event`, `SeatReservation`, 5 commands / 3 queries, `TryReserveAsync`, Booking-only internal endpoints, seed generator | §7 (FR-CAT-01..09), AR-09, SD-03, SD-05, CP-10 | Step-3 | filters + total · 403 attendee / other owner, 200 admin · public/internal authorization proven · 409 overbook · same reservationId twice → seats change once · 400 invalid | Not Started |
 | **Step-5** | Booking service: book with compensation, mine, retryable cancel, stats. ⛔ No UI, no idempotency key | `Booking` entity, cancellation release-pending state, 2 commands / 3 queries, `ICatalogClient`, `IPaymentGateway`, seed | §8 (FR-BKG-01..07, 09), SD-04, SD-05, CP-10 | Step-4 | seats −2 · 422 keeps seats · cancel restores / retry after Catalog outage / 403 other · stats scoped · 503 when Catalog down, My Bookings still works | Dependent (Step-4) |
 | **Step-16** | Idempotent booking creation + optimistic concurrency on event edits. ⛔ No retry policies, no UI | atomic `BookingRequest` claim with stable reservation/payment IDs; `RowVersion` on `Event`; migrations | FR-BKG-08, FR-CAT-10, RES-06/07, CP-10 | Step-5 | same key twice → one booking · parallel same key → same booking and one payment/reservation · mismatched replay → 409 · different keys → two · stale rowVersion → 409 | Dependent (Step-5) |
 | **Step-17** | Resilience pipeline for service-to-service calls, DB retry. ⛔ No chaos toggle (Later), no gateway limits, no UI | `AddEventHubResilience()` in ServiceDefaults, safe-method retry rule, breaker → 503, EF execution strategy | RES-01/02/03/04/05/13, FR-BKG-07 | Step-5 | Catalog stopped → retries in trace, then 503 · repeated failures → circuit opens, fast 503 · restart → recovers after break · breaker transitions logged | Dependent (Step-5) |
 | ~~**Step-18**~~ | ~~Gateway rate limiting, timeouts, aggregated health~~ — **retired by the owner; moved to "Later — for understanding" (L-2)**. The `/agent` route timeout moved into Step-9. | — | — | — | — | Retired |
-| **Step-6** | Angular shell + auth, clean folder structure. ⛔ No feature screens | `web/` with core/shared/features, Material, dev proxy, AuthService, interceptor, guards, role menu | FR-UI-01..04, CP-09 | Step-3 | 5 users log in, menus differ · refresh keeps login · guards redirect · bad token → login · register works | Dependent (Step-3) |
+| **Step-6** | Angular shell + auth, clean folder structure. ⛔ No feature screens | `web/` with core/shared/features, Material, dev proxy, AuthService, interceptor, guards, role menu | FR-UI-01..04, CP-09 | Step-3 | 5 users log in, menus differ · refresh keeps login · guards redirect · bad token → login · register works | Not Started |
 | **Step-7a** | Events list + details. ⛔ Book button inert | filter bar, cards, paging, details page | FR-UI-05/06 | Step-4, Step-6 | filters work · seats left matches API · sold-out badge · guest can browse | Dependent (Step-4, Step-6) |
 | **Step-7b** | Book tickets + My Bookings. ⛔ No organizer screens | booking dialog, messages per status, bookings table, cancel | FR-UI-07/08 | Step-5, Step-7a | book end-to-end · seats update · payment failure message · cancel works | Dependent (Step-5, Step-7a) |
 | **Step-8a** | Organizer: My Events + create/edit/delete. ⛔ No charts | typed reactive form, validation, rowVersion, delete confirm | FR-UI-09, FR-CAT-10 | Step-4, Step-6, Step-16 | new event in both lists · field errors block submit · edits persist · stale edit and delete conflicts show 409 messages | Dependent (Step-4, Step-6, Step-16) |
@@ -349,23 +349,23 @@ architecture checks (Later L-3).
 four layers with commands and queries. ⛔ No UI, no refresh tokens.
 
 **Implementation**
-- [ ] **Domain:** `User` (private setters, `User.Create(...)` factory, `ChangeRole(...)`), `Roles` constants, `UserErrors`
-- [ ] **Application:** commands `RegisterUser`, `Login`, `ChangeUserRole`; queries `GetCurrentUser`, `ListUsers` — each with handler + validator; ports `IUserRepository`, `IUserQueries`, `IUnitOfWork`, `IPasswordHasher`, `IJwtTokenGenerator`; use shared BuildingBlocks `ICurrentUser`
-- [ ] **Infrastructure:** `IdentityDbContext` (`AddSqlServerDbContext`), `UserRepository`, `PasswordHasherAdapter` (ASP.NET Core `PasswordHasher`), `JwtTokenGenerator` (FR-ID-03, `JwtOptions` validated at start), seed SD-02 — fixed GUIDs as constants in `EventHub.SeedData.DemoUsers`
-- [ ] **Api:** thin endpoints for SPEC §6.3 using `ISender` + `ToHttpResult()`
-- [ ] ServiceDefaults: `AddEventHubAuth()` (JwtBearer, `MapInboundClaims = false`, `NameClaimType = "sub"`, `RoleClaimType = "role"`, policies `Organizer`, `Admin`) and the BuildingBlocks `ICurrentUser` implementation from `HttpContext` — used by all APIs
-- [ ] Create and commit the initial Identity EF migration; call `MigrateAsync()` before idempotent seeding (CP-10)
-- [ ] `identity.http` covering every criterion
+- [x] **Domain:** `User` (private setters, `User.Create(...)` factory, `ChangeRole(...)`), `Roles` constants, `UserErrors`
+- [x] **Application:** commands `RegisterUser`, `Login`, `ChangeUserRole`; queries `GetCurrentUser`, `ListUsers` — each with handler + validator; ports `IUserRepository`, `IUserQueries`, `IUnitOfWork`, `IPasswordHasher`, `IJwtTokenGenerator`; use shared BuildingBlocks `ICurrentUser`
+- [x] **Infrastructure:** `IdentityDbContext` (`AddSqlServerDbContext`), `UserRepository`, `PasswordHasherAdapter` (ASP.NET Core `PasswordHasher`), `JwtTokenGenerator` (FR-ID-03, `JwtOptions` validated at start), seed SD-02 — fixed GUIDs as constants in `EventHub.SeedData.DemoUsers`
+- [x] **Api:** thin endpoints for SPEC §6.3 using `ISender` + `ToHttpResult()`
+- [x] ServiceDefaults: `AddEventHubAuth()` (JwtBearer, `MapInboundClaims = false`, `NameClaimType = "sub"`, `RoleClaimType = "role"`, policies `Organizer`, `Admin`) and the BuildingBlocks `ICurrentUser` implementation from `HttpContext` — used by all APIs
+- [x] Create and commit the initial Identity EF migration; call `MigrateAsync()` before idempotent seeding (CP-10)
+- [x] `identity.http` covering every criterion
 
 **Dependencies.** Step-20.
 
 **Acceptance criteria**
-- [ ] Login succeeds for all 5 demo users; decoded token shows `sub`, `email`, `name`, `role`, `exp` ≈ now + 2 h (FR-ID-02/03)
-- [ ] Wrong password and unknown email both return 401 with an identical message (FR-ID-02)
-- [ ] `/users` → 403 with attendee token, 200 with admin token (FR-ID-05)
-- [ ] `/auth/me` → 401 without token, correct user with it; duplicate register → 409 (FR-ID-01/04)
+- [x] Login succeeds for all 5 demo users; decoded token shows `sub`, `email`, `name`, `role`, `exp` ≈ now + 2 h (FR-ID-02/03)
+- [x] Wrong password and unknown email both return 401 with an identical message (FR-ID-02)
+- [x] `/users` → 403 with attendee token, 200 with admin token (FR-ID-05)
+- [x] `/auth/me` → 401 without token, correct user with it; duplicate register → 409 (FR-ID-01/04)
 
-**Status.** Not Started
+**Status.** Completed (2026-09-26 — evidence: `docs/STEP-3-EVIDENCE.md`, `src/Services/Identity/Identity.Api/identity.http`; build 0 warnings)
 
 ---
 
@@ -399,7 +399,7 @@ into an empty table and assert the IDs after seeding; fail loudly if they differ
 - [ ] Calling `/catalog/internal/...` through the gateway → 404; calling the service directly without the Booking credential → 403
 - [ ] Invalid input (negative price, past date) → 400 with field messages (FR-CAT-06)
 
-**Status.** Dependent (Step-3)
+**Status.** Not Started
 
 ---
 
@@ -522,7 +522,7 @@ structure of CP-09. ⛔ Feature pages are placeholders only.
 - [ ] 👤 Garbage token in localStorage → next API call redirects to login (FR-UI-02)
 - [ ] 👤 Register logs the new user in as Attendee; `ng lint` passes (FR-UI-01, CP-09)
 
-**Status.** Dependent (Step-3)
+**Status.** Not Started
 
 ---
 

@@ -1,0 +1,156 @@
+# Exercises Identity through the gateway, including login, roles, and validation errors.
+# Run named login requests first; response references supply tokens without committing them.
+@baseUrl = http://localhost:5100/identity
+@password = Demo@123
+@newEmail = step3.{{$timestamp}}@demo.com
+
+### admin login → 200; decode JWT to inspect sub/email/name/role, issuer/audience, HS256, 7200-second lifetime
+# @name adminLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{"email":"admin@demo.com","password":"{{password}}"}
+
+### organizer login → 200; decode JWT to inspect sub/email/name/role, issuer/audience, HS256, 7200-second lifetime
+# @name organizerLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{"email":"organizer@demo.com","password":"{{password}}"}
+
+### organizer2 login → 200; decode JWT to inspect sub/email/name/role, issuer/audience, HS256, 7200-second lifetime
+# @name organizer2Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{"email":"organizer2@demo.com","password":"{{password}}"}
+
+### attendee login → 200; decode JWT to inspect sub/email/name/role, issuer/audience, HS256, 7200-second lifetime
+# @name attendeeLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{"email":"attendee@demo.com","password":"{{password}}"}
+
+### attendee2 login → 200; decode JWT to inspect sub/email/name/role, issuer/audience, HS256, 7200-second lifetime
+# @name attendee2Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{"email":"attendee2@demo.com","password":"{{password}}"}
+
+### Incorrect password → 401 "Invalid email or password."
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{"email":"admin@demo.com","password":"WrongPassword"}
+
+### Unknown email → identical 401 detail and code
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{"email":"missing@demo.com","password":"WrongPassword"}
+
+### Current user without a token → 401
+GET {{baseUrl}}/auth/me
+
+### Current user → 200, attendee profile
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+
+### Users without a token → 401
+GET {{baseUrl}}/users
+
+### Users with attendee token → 403
+GET {{baseUrl}}/users
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+
+### Users with admin token → 200; no hashes in DTOs
+GET {{baseUrl}}/users
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+
+### New registration → 201 with token; supplied role cannot grant admin rights
+# @name registration
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{"email":"{{newEmail}}","fullName":"Step 3 Verification","password":"{{password}}","role":"Admin"}
+
+### Registered profile → 200 with Attendee role
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{registration.response.body.$.accessToken}}
+
+### Case-normalized duplicate registration → 409
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{"email":"ADMIN@demo.com","fullName":"Duplicate","password":"{{password}}"}
+
+### Invalid registration → 400 with field errors
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{"email":"invalid","fullName":"","password":"short"}
+
+### Invalid login input → 400
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{"email":"invalid","password":""}
+
+### Non-admin role change → 403
+PUT {{baseUrl}}/users/00000000-0000-0000-0000-000000000005/role
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"role":"Organizer"}
+
+### Invalid role → 400
+PUT {{baseUrl}}/users/00000000-0000-0000-0000-000000000005/role
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"role":"Guest"}
+
+### Unknown user → 404
+PUT {{baseUrl}}/users/99999999-9999-9999-9999-999999999999/role
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"role":"Organizer"}
+
+### Promote attendee2 → 200
+PUT {{baseUrl}}/users/00000000-0000-0000-0000-000000000005/role
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"role":"Organizer"}
+
+### Old token keeps Attendee role → 200
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{attendee2Login.response.body.$.accessToken}}
+
+### Log in again after promotion → token has Organizer role
+# @name promotedLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{"email":"attendee2@demo.com","password":"{{password}}"}
+
+### New token profile shows Organizer → 200
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{promotedLogin.response.body.$.accessToken}}
+
+### Restore attendee2 demo role after the experiment → 200
+PUT {{baseUrl}}/users/00000000-0000-0000-0000-000000000005/role
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"role":"Attendee"}
+
+### Invalid token → 401
+GET {{baseUrl}}/auth/me
+Authorization: Bearer invalid-token
+
+### Identity readiness including SQL → 200 Healthy
+GET {{baseUrl}}/health

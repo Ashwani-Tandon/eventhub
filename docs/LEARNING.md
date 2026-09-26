@@ -58,3 +58,11 @@ The hand-written mediator finds each command/query handler through DI and wraps 
 Expected failures use `Result` and map centrally to consistent HTTP ProblemDetails; only unexpected exceptions reach the global handler, which logs the stack but returns a safe 500 body.
 Handler dispatch adapters are built during assembly registration, so the request path uses an explicit dictionary lookup instead of runtime reflection.
 Break it on purpose: send an empty message to `/identity/debug/echo`; expect 400 with a `Message` field error and no performance or handler entry in the Aspire logs.
+
+## Step-3 — Identity and shared JWT validation
+
+Identity now implements registration, login, token profile, user listing, and role changes as five explicit CQRS slices, with ports keeping SQL and authentication libraries outside Application.
+ASP.NET Core PasswordHasher stores salted hashes; JWT signs readable profile claims, and every API independently checks signature, issuer, audience, and expiry before role policies run.
+Issued tokens are snapshots: promoting attendee2 changed a fresh login to Organizer while the old token stayed Attendee; the demo role was then restored.
+The committed EF migration runs before development seeding; restarting preserved the registered user and left six users and one migration, proving persistence and seed idempotency.
+Break it on purpose: use an attendee token on /identity/users or alter a token signature; expect 403 for insufficient role and 401 for an invalid token.

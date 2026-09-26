@@ -1,20 +1,29 @@
+// Composes Identity's use cases, authentication, and SQL adapters.
+// Development startup applies migrations before creating the demo users.
 using EventHub.BuildingBlocks.Messaging;
+using Identity.Api;
+using Identity.Application.Features.Login;
+using Identity.Infrastructure;
 using Identity.Api.Debugging;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-builder.Services.AddMediator(typeof(EchoCommand).Assembly);
+builder.AddEventHubAuth();
+builder.AddIdentityInfrastructure();
+builder.Services.AddMediator(typeof(EchoCommand).Assembly, typeof(LoginCommand).Assembly);
 
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapIdentityEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
+    await app.Services.InitializeIdentityAsync(app.Lifetime.ApplicationStopping);
     app.MapDebugEndpoints();
 }
 
 app.MapDefaultEndpoints();
 
 app.Run();
-// Composes the Identity API and registers shared hosting and mediator services.
-// During Development it exposes the echo example so the pipeline can be explored before real use cases.

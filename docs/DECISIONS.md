@@ -1,5 +1,13 @@
 # EventHub — Architecture Decisions
 
+## 2026-09-26 — Read the current profile from signed token claims
+
+**Decision.** Keep the id/role `ICurrentUser` port narrow and add a shared technical `ICurrentUserProfile` port for email/name claims. Identity's current-user query reads the authenticated token, not a fresh database profile.
+
+**Why.** FR-ID-04 requests the current user from the token, while FR-ID-05 requires issued tokens to retain their role until the next login. Both the profile response and authorization therefore use the same snapshot.
+
+**Trade-off.** A changed role remains effective in existing tokens until they expire after two hours. Immediate token revocation and refresh tokens remain outside v1.0.
+
 ## 2026-09-26 — Keep Aspire projects under `src/Aspire`
 
 **Decision.** The backend startup command is `dotnet run --project src/Aspire/EventHub.AppHost`, matching the solution layout in SPEC §15.5.

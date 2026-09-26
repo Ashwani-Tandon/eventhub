@@ -4,6 +4,9 @@ namespace Microsoft.AspNetCore.Http;
 
 public static class ResultHttpExtensions
 {
+    public static IResult ToCreatedHttpResult<TValue>(this Result<TValue> result, string location) =>
+        result.IsSuccess ? Results.Created(location, result.Value) : CreateProblem(result.Error!);
+
     public static IResult ToHttpResult(this Result result) =>
         result.IsSuccess
             ? Results.NoContent()

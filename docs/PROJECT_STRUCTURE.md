@@ -3,6 +3,10 @@
 This guide explains where code belongs and why each project exists. After Step-2, the structure and
 runtime wiring are present, but the business projects are intentionally empty until their planned steps.
 
+Step-3 fills Identity's four layers with user rules, five CQRS slices, SQL/hash/JWT adapters,
+and HTTP endpoints. ServiceDefaults now supplies shared JWT validation, role policies, and token
+request context; the initial Identity migration and live evidence are committed with this step.
+
 ## Repository map
 
 ```text
