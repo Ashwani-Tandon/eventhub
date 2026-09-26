@@ -7,12 +7,12 @@ following the same process.
 
 | File | Role |
 |---|---|
-| `SPEC.md` | **What** to build. Source of truth. Requirement IDs (`FR-*`, `AR-*`, `SD-*`, `NFR-*`). |
-| `EXECUTION_PLAN.md` | **In what order**, and how each step is proven. The board is authoritative; detail status is synchronized with it. |
+| `docs/SPEC.md` | **What** to build. Source of truth. Requirement IDs (`FR-*`, `AR-*`, `SD-*`, `NFR-*`). |
+| `docs/EXECUTION_PLAN.md` | **In what order**, and how each step is proven. The board is authoritative; detail status is synchronized with it. |
 | `AGENTS.md` | **How** to work (this file). |
 
-Supporting files created along the way: `DECISIONS.md` (why things are the way they are),
-`LEARNING.md` (what the owner learned per step), `README.md`, `DEMO.md`.
+Supporting files created along the way live in `docs/`: `DECISIONS.md` (why things are the way they
+are), `LEARNING.md` (what the owner learned per step), `PROJECT_STRUCTURE.md`, `README.md`, `DEMO.md`.
 
 ## Purpose — this is a learning project
 
@@ -20,11 +20,11 @@ The owner is building this to understand microservices, auth and AI agents deepl
 working code. So:
 
 - Follow **Clean Architecture, CQRS with our own mediator, SOLID and the coding practices** in
-  `SPEC.md` §15 — every use case is a command or query with its handler and validator; endpoints stay
+  `docs/SPEC.md` §15 — every use case is a command or query with its handler and validator; endpoints stay
   thin; business rules live in the Domain.
 - Prefer **clear, explicit code** over clever abstractions. Manual mapping, no reflection magic beyond
   handler registration.
-- Resilience rules in `SPEC.md` §14 apply to every outbound call.
+- Resilience rules in `docs/SPEC.md` §14 apply to every outbound call.
 - After each step, **explain** what was built and why (see "Finishing a step").
 - Never hide a concept behind a library without saying what the library does.
 
@@ -32,9 +32,9 @@ working code. So:
 
 When asked to "execute Step-N" (or "do the next step"):
 
-1. **Check readiness.** Open the board in `EXECUTION_PLAN.md`. The step's status must be `Not Started`
+1. **Check readiness.** Open the board in `docs/EXECUTION_PLAN.md`. The step's status must be `Not Started`
    and all its dependencies `Completed`. If not, say which dependency is missing and stop.
-2. **Read the spec.** Read every `SPEC.md` section and requirement ID listed for the step, plus
+2. **Read the spec.** Read every `docs/SPEC.md` section and requirement ID listed for the step, plus
    "Rules that apply to every step" in the plan.
 3. **Claim it.** Set the step's status to `In Progress (<agent or name>, <date>)` on the board **and** in
    its detail section.
@@ -57,17 +57,17 @@ Do **not** start the next step unless asked.
   - what was built (files, endpoints)
   - the 2–4 concepts it demonstrates and **why** it was done this way
   - one "break it on purpose" experiment to try, and what should happen
-- Append 3–5 lines to `LEARNING.md` for that step.
+- Append 3–5 lines to `docs/LEARNING.md` for that step.
 
 ## When the spec and reality disagree
 
-Stop and tell the owner. If they agree to a change: update `SPEC.md` first, add a `DECISIONS.md` entry
+Stop and tell the owner. If they agree to a change: update `docs/SPEC.md` first, add a `docs/DECISIONS.md` entry
 (Decision · Why · Trade-off), then change the code. Never silently diverge from the spec.
 
 ## When stuck
 
 After 3 genuine attempts (or ~1 hour): add a row `OI-##` to the Open Issues log in
-`EXECUTION_PLAN.md`, set the step to `Blocked (OI-##)`, explain the problem, and suggest a step that
+`docs/EXECUTION_PLAN.md`, set the step to `Blocked (OI-##)`, explain the problem, and suggest a step that
 does not depend on it.
 
 ## Things the agent must not do

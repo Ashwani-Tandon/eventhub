@@ -1,5 +1,7 @@
 # EventHub — Learning Notes
 
+These notes follow the execution steps in `EXECUTION_PLAN.md`; the project and layer overview is in `PROJECT_STRUCTURE.md`.
+
 ## Step-13 — Local project setup
 
 The four planning files are in `/Users/apple/Personal Projects/Event Booking Platform`.

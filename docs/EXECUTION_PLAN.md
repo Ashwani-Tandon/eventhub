@@ -2,7 +2,7 @@
 
 > Built to `SPEC.md` (spec-driven: every step names the requirement IDs it implements, and its
 > acceptance criteria prove them). Workflow rules for whoever executes the plan — you or a coding
-> agent — are in `AGENTS.md`.
+> agent — are in [`../AGENTS.md`](../AGENTS.md).
 >
 > **No time boxes.** Steps are ordered by dependency only. Do as many as you like in one sitting —
 > one step or all of them. The board below is authoritative; the repeated status in each detail

@@ -440,7 +440,9 @@ Each business service (Identity, Catalog, Booking) is split into four projects. 
 
 ```
 EventHub/
+├─ AGENTS.md · CLAUDE.md                         agent entry points (kept at root for discovery)
 ├─ Directory.Build.props · Directory.Packages.props · .editorconfig · EventHub.sln
+├─ docs/  README.md · SPEC.md · EXECUTION_PLAN.md · DECISIONS.md · LEARNING.md · PROJECT_STRUCTURE.md
 ├─ src/
 │  ├─ BuildingBlocks/EventHub.BuildingBlocks/        mediator, CQRS interfaces, behaviors, Result/Error, Entity base, current-user abstraction
 │  ├─ Aspire/EventHub.AppHost/ · EventHub.ServiceDefaults/   (auth, resilience, Result→HTTP mapping, telemetry)
