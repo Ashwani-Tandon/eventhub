@@ -20,7 +20,11 @@ public static class CatalogRegistration
     public static void AddCatalogInfrastructure(this IHostApplicationBuilder builder)
     {
         builder.AddSqlServerDbContext<CatalogDbContext>("catalogdb", configureDbContextOptions: options =>
-            options.UseSqlServer(sql => sql.CommandTimeout(15)));
+            options.UseSqlServer(sql =>
+            {
+                sql.CommandTimeout(15);
+                sql.EnableRetryOnFailure();
+            }));
         // Use the same database helper to prepare event changes and save them during this request.
         builder.Services.AddScoped<CatalogRepository>();
         builder.Services.AddScoped<IEventRepository>(services => services.GetRequiredService<CatalogRepository>());

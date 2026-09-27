@@ -20,7 +20,11 @@ public static class IdentityRegistration
     public static void AddIdentityInfrastructure(this IHostApplicationBuilder builder)
     {
         builder.AddSqlServerDbContext<IdentityDbContext>("identitydb", configureDbContextOptions: options =>
-            options.UseSqlServer(sql => sql.CommandTimeout(15)));
+            options.UseSqlServer(sql =>
+            {
+                sql.CommandTimeout(15);
+                sql.EnableRetryOnFailure();
+            }));
         // Use one database helper throughout the user's request, so the save knows
         // about the user records that were loaded or prepared earlier in that request.
         builder.Services.AddScoped<UserRepository>();

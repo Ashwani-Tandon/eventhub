@@ -2,6 +2,7 @@
 // Seeding reads public Catalog snapshots through HTTP; it never opens Catalog's database.
 using Booking.Application.Ports;
 using EventHub.SeedData;
+using EventHub.ServiceDefaults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -15,7 +16,11 @@ public static class BookingRegistration
     public static void AddBookingInfrastructure(this IHostApplicationBuilder builder)
     {
         builder.AddSqlServerDbContext<BookingDbContext>("bookingdb", configureDbContextOptions: options =>
-            options.UseSqlServer(sql => sql.CommandTimeout(15)));
+            options.UseSqlServer(sql =>
+            {
+                sql.CommandTimeout(15);
+                sql.EnableRetryOnFailure();
+            }));
         // Give the booking task one shared database helper. Preparing a booking and saving it
         // must use the same helper, or the save would not know about the prepared booking.
         builder.Services.AddScoped<BookingRepository>();
@@ -32,9 +37,11 @@ public static class BookingRegistration
         builder.Services.AddHttpClient<ICatalogClient, CatalogHttpClient>(client =>
         {
             client.BaseAddress = new Uri("https+http://catalog");
-            // Step-17 replaces this total bound with the shared retry/breaker pipeline.
-            client.Timeout = TimeSpan.FromSeconds(10);
-        }).AddHttpMessageHandler<ForwardTokenHandler>();
+            // Polly owns both timeout layers; disable HttpClient's separate timer so one budget explains every failure.
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        })
+            .AddHttpMessageHandler<ForwardTokenHandler>()
+            .AddEventHubResilience("Catalog");
     }
 
     /// <summary>Migrates first, then seeds the shared purchases only when Booking's table is empty.</summary>

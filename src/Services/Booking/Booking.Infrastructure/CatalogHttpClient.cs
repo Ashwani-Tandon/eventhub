@@ -6,8 +6,11 @@ using System.Text.Json;
 using Booking.Application.Ports;
 using Booking.Domain;
 using EventHub.BuildingBlocks.Results;
+using EventHub.ServiceDefaults;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
 
 namespace Booking.Infrastructure;
 
@@ -58,6 +61,8 @@ public sealed class CatalogHttpClient(
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"/internal/events/{eventId}/reservations");
         request.Content = JsonContent.Create(new ReservationInput(reservationId, quantity));
+        // Catalog uses reservationId as its deduplication key, so a lost response can be retried safely.
+        request.MarkAsIdempotent();
         return await SendInternalAsync(request, cancellationToken);
     }
 
@@ -67,6 +72,8 @@ public sealed class CatalogHttpClient(
         CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"/internal/reservations/{reservationId}/release");
+        // Releasing an already released reservation is a no-op, so this POST is also safe to replay.
+        request.MarkAsIdempotent();
         return await SendInternalAsync(request, cancellationToken);
     }
 
@@ -128,7 +135,7 @@ public sealed class CatalogHttpClient(
     {
         // A call taking too long and a user cancelling can look similar here.
         // Report Catalog as unavailable only for the timeout, not when the user cancelled.
-        return exception is HttpRequestException or JsonException
+        return exception is HttpRequestException or JsonException or BrokenCircuitException or TimeoutRejectedException
             || (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
     }
 

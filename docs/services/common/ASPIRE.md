@@ -52,19 +52,40 @@ Stop/start an individual service there to observe dependency failures without de
 
 Project: `src/Aspire/EventHub.ServiceDefaults`. APIs and Gateway call shared setup rather than duplicating technical hosting configuration.
 
-| Feature           | Current behavior                                                                                                               |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Discovery         | Resolves outbound HTTP clients through Aspire service names                                                                    |
-| Telemetry         | OpenTelemetry logging, ASP.NET/HTTP tracing, HTTP/server/runtime metrics; OTLP export when configured                          |
-| Health            | Development-only `/health` runs registered checks; `/alive` runs checks tagged `live`; healthy gives 200, unhealthy 503        |
-| Authentication    | APIs validate JWT signature, issuer `eventhub-identity`, audience `eventhub`, expiry, and HS256 algorithm with zero clock skew |
-| Authorization     | Organizer policy accepts Organizer or Admin; Admin policy accepts only Admin                                                   |
-| Caller context    | Implements BuildingBlocks user/profile interfaces from signed claims                                                           |
-| HTTP results      | Translates Results into 200/201/204 or typed ProblemDetails; validation includes `errors`                                      |
-| Unexpected errors | Logs exception details and returns a safe 500 body with trace ID instead of leaking a stack trace                              |
+| Feature           | Current behavior                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Discovery         | Resolves outbound HTTP clients through Aspire service names                                                                     |
+| Resilience        | Shared configurable total timeout → retry → circuit breaker → attempt timeout for service HTTP calls                            |
+| Telemetry         | OpenTelemetry logging, ASP.NET/HTTP tracing, HTTP/server/runtime metrics; OTLP export when configured                           |
+| Health            | Development-only `/health` runs registered checks; `/alive` runs checks tagged `live`; healthy gives 200, unhealthy 503         |
+| Authentication    | APIs validate JWT signature, issuer `eventhub-identity`, audience `eventhub`, expiry, and HS256 algorithm with zero clock skew  |
+| Authorization     | Organizer policy accepts Organizer or Admin; Admin policy accepts only Admin                                                    |
+| Caller context    | Implements BuildingBlocks user/profile interfaces from signed claims                                                            |
+| HTTP results      | Translates Results into 200/201/204 or typed ProblemDetails; validation includes `errors`                                       |
+| Unexpected errors | Logs exception details and returns a safe 500 body with trace ID instead of leaking a stack trace                               |
 
 Health polling is excluded from normal server tracing. Health routes are not automatically authenticated. The Gateway does not call shared JWT setup; destination APIs validate tokens.
-Shared HTTP discovery exists now; the configurable retry/circuit-breaker/attempt-timeout pipeline is planned, not implemented. Booking currently sets its own ten-second Catalog HTTP bound.
+`AddEventHubResilience(dependencyName)` is the one opt-in for service clients. Booking's Catalog client uses it now; later Agent clients use the same implementation rather than copying policy code. Values bind from the caller's `Resilience` configuration section and are validated during startup.
+
+The default pipeline is ordered outermost to innermost: a 10-second total timeout, up to 3 retries with exponential backoff from 200 ms and jitter, a breaker that opens at 50% failures with at least 5 attempts in 10 seconds, and a 2-second attempt timeout. The breaker remains open for 15 seconds. The 2-second attempt limit must be shorter than the 10-second overall budget so a slow attempt leaves time for a retry; the future 30-second Gateway budget remains outside both. Jitter spreads simultaneous retries, while the breaker stops adding traffic to a dependency that is already failing.
+
+Retries are deliberately narrower than breaker failure detection. GET is safe. A write retries only when it carries `Idempotency-Key` or the typed client marks it idempotent; Booking marks Catalog reserve/release because their stable `reservationId` makes replays no-ops. Other POST, PUT, PATCH, and DELETE requests get one attempt. Transient connection errors, Polly timeouts, 408, 429, and 5xx count as failures. Exhausted calls and open circuits become the service's `Unavailable` Result and therefore 503 ProblemDetails with `Retry-After`, never an accidental 500.
+
+Retry, timeout, and breaker callbacks write structured warning logs with the current W3C trace ID. In Aspire, open Booking's trace and logs together: the trace shows each outbound attempt, while matching `TraceId` fields explain retry numbers and the `opened` → `half-open` → `closed` breaker transitions. Use [`resilience.http`](../../../src/Services/Booking/Booking.Api/resilience.http): stop only Catalog, send the outage requests, restart it, wait 15 seconds, and send the recovery request. This is an operational experiment, not a production chaos endpoint.
+
+Polly can dispatch breaker callbacks using a retained execution context. The explicit `TraceId` in our log message is captured per call: `opened` identifies the triggering failure and `closed` identifies the successful trial. `half-open` links to a retained earlier failure trace, which explains why it can differ from the recovery request's trace. Use the explicit message field for this relationship; the dashboard's ambient log context can reflect the retained request too.
+
+The recorded outage trace has four two-second Catalog attempts (one initial call and three retries), followed by 503 in 9.33 seconds. The breaker counted attempts inside the retry layer: the fifth failed attempt opened it, and the following request returned 503 in 10.9 ms. Restarting Catalog and waiting at least 15 seconds allowed booking `308` to complete with 201 in 0.74 seconds. My Bookings still returned 200 during the outage.
+
+![Aspire outage trace: four failed Catalog attempts and HTTP 503](images/resilience-outage.png)
+
+![Aspire recovery trace: Catalog calls succeed and Booking returns HTTP 201](images/resilience-recovery.png)
+
+Booking's `appsettings.json` contains the non-secret `Resilience` numbers shown above. Strict JSON cannot carry opening comments, so this reference explains its purpose: it configures logging, host filtering, and the shared outgoing HTTP policy for Booking. The screenshots are dashboard output, not hand-authored implementation files.
+
+Every SQL Server DbContext sets a 15-second command timeout and enables the provider's transient execution strategy. EF automatically retries individual queries and saves. Catalog's explicit seat reserve/release transactions are wrapped in `CreateExecutionStrategy().ExecuteAsync(...)`, because a user-started transaction must be replayed as one unit rather than retrying only half of the seat operation.
+
+The library supplies the timeout/retry/breaker machinery; EventHub supplies the policy order, safe-request gate, numbers, and business error mapping. See Microsoft's [HTTP resilience documentation](https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience) and [EF connection resiliency documentation](https://learn.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency) for the underlying behavior.
 
 ## Boundaries
 

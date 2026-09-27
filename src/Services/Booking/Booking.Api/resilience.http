@@ -1,0 +1,60 @@
+# Demonstrates Booking-to-Catalog retries, circuit breaking, recovery, and graceful degradation.
+# Use the Aspire dashboard instructions in each section; every purchase body is intentionally safe for the stated experiment.
+@gateway = http://localhost:5100
+@booking = {{gateway}}/booking
+@eventId = 2
+@password = Demo@123
+
+### Login before the outage
+# @name attendeeLogin
+POST {{gateway}}/identity/auth/login
+Content-Type: application/json
+
+{
+  "email": "attendee@demo.com",
+  "password": "{{password}}"
+}
+
+### Healthy baseline -> 200
+GET {{gateway}}/catalog/events/{{eventId}}
+
+### Stop Catalog in Aspire, then send once -> 503 with Retry-After after the initial GET plus 3 retries
+# Inspect Booking's trace/logs for retry 1, 2, and 3 carrying the same TraceId.
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "eventId": {{eventId}},
+  "quantity": 1,
+  "simulatePaymentFailure": false
+}
+
+### Keep Catalog stopped and send again -> 503; after the fifth failed attempt the circuit is open
+# Once open, repeat this request and inspect the client duration: it should finish in under 100 ms.
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "eventId": {{eventId}},
+  "quantity": 1,
+  "simulatePaymentFailure": false
+}
+
+### Graceful degradation while Catalog is stopped -> 200
+GET {{booking}}/bookings/mine
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+
+### Restart Catalog, wait at least 15 seconds, then send with a fresh key -> 201
+# Booking logs should show half-open followed by closed with the request TraceId.
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Idempotency-Key: step17-recovery-change-me
+Content-Type: application/json
+
+{
+  "eventId": {{eventId}},
+  "quantity": 1,
+  "simulatePaymentFailure": false
+}
