@@ -40,6 +40,8 @@ public sealed class LoggingBehavior<TRequest, TResponse>(
 
         LogPipelineEntered(logger, requestName, null);
 
+// Let the request go through its checks and the requested task, then record how long it took.
+        // If an input check rejects the request, record that failed result too.
         var response = await continuation(cancellationToken);
         var elapsed = timeProvider.GetElapsedTime(startedAt);
 

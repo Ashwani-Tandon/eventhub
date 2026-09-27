@@ -49,6 +49,8 @@ public static class DemoData
     /// </summary>
     public static DemoDataSet Generate(DateTimeOffset now)
     {
+        // Use the same starting number to generate repeatable demo choices. Event dates depend on today.
+        // If Booking starts on another day, it reads the dates Catalog already saved.
         var random = new Random(RandomSeed);
         var today = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
         string[] categories = ["Music", "Tech", "Sports", "Comedy", "Workshop"];
@@ -71,6 +73,8 @@ public static class DemoData
                 today.AddDays(-180 + index)));
         }
 
+        // Ten purchases of two tickets fill event 1's 20 seats, letting us show "sold out".
+        // Spread other purchases across events and months so demo sales reports have useful data.
         var bookings = new List<SeedBooking>(300);
         for (var index = 1; index <= 300; index++)
         {

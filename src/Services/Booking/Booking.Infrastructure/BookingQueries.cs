@@ -52,6 +52,7 @@ public sealed class BookingQueries(BookingDbContext db) : IBookingQueries
         var rows = await query.Select(x => new SalesRow(
             x.EventId, x.EventTitle, x.Quantity, x.Total, x.Status, x.CreatedAt))
             .ToListAsync(cancellationToken);
+        // Keep cancelled bookings in history, but do not count them as tickets sold or money earned.
         var confirmed = rows.Where(x => x.Status == BookingStatus.Confirmed).ToList();
         var totals = new BookingTotals(
             confirmed.Sum(x => x.Total),
@@ -59,6 +60,8 @@ public sealed class BookingQueries(BookingDbContext db) : IBookingQueries
             rows.Count,
             rows.Count(x => x.Status == BookingStatus.Cancelled));
 
+        // Show this month and the previous five, including months with no sales.
+        // A sale at the start of a month belongs to that month, not also to the one before it.
         var firstMonth = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-5);
         var months = Enumerable.Range(0, 6).Select(offset =>
         {
@@ -68,6 +71,7 @@ public sealed class BookingQueries(BookingDbContext db) : IBookingQueries
             return new MonthlyRevenue(start.ToString("yyyy-MM", CultureInfo.InvariantCulture), revenue);
         }).ToList();
 
+        // Find the ten events with the most tickets sold. A booking for five tickets counts as five, not one.
         var topEvents = confirmed.GroupBy(x => new { x.EventId, x.Title })
             .Select(group => new EventSales(group.Key.EventId, group.Key.Title,
                 group.Sum(x => x.Quantity), group.Sum(x => x.Total)))

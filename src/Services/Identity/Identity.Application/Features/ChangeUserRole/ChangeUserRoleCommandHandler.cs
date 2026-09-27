@@ -26,6 +26,7 @@ public sealed class ChangeUserRoleCommandHandler(
             return Result<UserDto>.Failure(UserErrors.NotFound);
         }
 
+        // Check the new role is allowed. The user must log in again before their login token shows the new role.
         var result = user.ChangeRole(request.Role);
         if (result.IsFailure)
         {

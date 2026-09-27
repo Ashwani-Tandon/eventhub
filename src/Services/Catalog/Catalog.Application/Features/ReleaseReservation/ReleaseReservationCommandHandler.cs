@@ -34,6 +34,8 @@ public sealed class ReleaseReservationCommandHandler(
             return Result<ReservationDto>.Failure(EventErrors.ReservationForbidden);
         }
 
+        // Whether we returned the seats now or they were already returned, tell Booking the work is done.
+        // Booking may ask again because it never received our earlier answer.
         return Result<ReservationDto>.Success(new(request.ReservationId, ReservationStatuses.Released));
     }
 }

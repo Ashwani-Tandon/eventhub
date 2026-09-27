@@ -19,6 +19,7 @@ public sealed class ForwardTokenHandler(IHttpContextAccessor accessor) : Delegat
             request.Headers.Authorization = value;
         }
 
+        // Now send the request onward with the user's login token attached.
         return base.SendAsync(request, cancellationToken);
     }
 }

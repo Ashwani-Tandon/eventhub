@@ -25,6 +25,7 @@ public sealed class GetBookingStatsQueryHandler(
             return Result<StatsDto>.Failure(BookingErrors.Unauthenticated);
         }
 
+        // Admin sees sales for all events. An organizer sees sales only for events they own.
         Guid? organizerId = currentUser.Role == BookingRoles.Admin ? null : userId;
         var stats = await queries.GetStatsAsync(organizerId, clock.GetUtcNow(), cancellationToken);
         return Result<StatsDto>.Success(stats);

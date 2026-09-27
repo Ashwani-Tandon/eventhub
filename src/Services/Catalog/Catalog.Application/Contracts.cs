@@ -109,6 +109,7 @@ public sealed record ReleaseResult(
 public interface IEventRepository
 {
     Task<Event?> FindAsync(int id, CancellationToken cancellationToken);
+    /// <summary>Saves only if the event has not changed since the organizer opened it; otherwise asks them to reload.</summary>
     Task<bool> SaveUpdateAsync(Event eventItem, byte[] originalRowVersion, CancellationToken cancellationToken);
     void Add(Event eventItem);
     void Remove(Event eventItem);

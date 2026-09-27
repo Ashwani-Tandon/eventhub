@@ -124,6 +124,7 @@ public sealed class Event : Entity<int>
         int capacity,
         DateTimeOffset now)
     {
+        // An organizer may correct a past event's title. If they change its date, the new date must be in the future.
         var dateChanged = startsAt != StartsAt;
         var validation = Validate(title, category, startsAt, price, capacity, SeatsBooked, now, dateChanged);
         if (validation.IsFailure)

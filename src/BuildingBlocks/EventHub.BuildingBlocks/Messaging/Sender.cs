@@ -11,6 +11,7 @@ internal sealed class Sender(
     IServiceProvider serviceProvider,
     IEnumerable<IRequestDispatcher> dispatchers) : ISender
 {
+// Keep a list of which class handles each task, so a request can find its handler directly.
     private readonly Dictionary<(Type Request, Type Response), IRequestDispatcher> _dispatchers =
         dispatchers.ToDictionary(
             static dispatcher => (dispatcher.RequestType, dispatcher.ResponseType));

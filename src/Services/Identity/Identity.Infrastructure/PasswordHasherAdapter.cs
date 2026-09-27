@@ -29,6 +29,8 @@ public sealed class PasswordHasherAdapter : IPasswordHasher
         string hash,
         string password)
     {
+        // The library may say "correct password, but stored protection could be upgraded".
+        // Allow login in that case; this version does not yet upgrade the stored password protection.
         return _hasher.VerifyHashedPassword(_subject, hash, password) != PasswordVerificationResult.Failed;
     }
 }

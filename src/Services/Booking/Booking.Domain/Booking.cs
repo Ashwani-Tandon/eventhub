@@ -89,6 +89,8 @@ public sealed class Booking : Entity<int>
             return Result.Failure(BookingErrors.EventStarted);
         }
 
+        // Record that the user's cancellation is accepted, but the seats still need to be returned.
+        // If the app stops here, the next Cancel request can finish that remaining work.
         Status = BookingStatus.Cancelled;
         SeatReleasePending = true;
         return Result.Success();

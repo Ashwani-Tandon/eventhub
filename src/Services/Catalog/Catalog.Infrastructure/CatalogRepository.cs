@@ -36,6 +36,8 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
         byte[] originalRowVersion,
         CancellationToken cancellationToken)
     {
+        // The organizer sends the revision stamp from when they opened the event.
+        // Save only if that stamp still matches, so their old screen cannot overwrite a newer edit.
         db.Entry(eventItem).Property(x => x.RowVersion).OriginalValue = originalRowVersion;
         try
         {
@@ -44,6 +46,7 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
         }
         catch (DbUpdateConcurrencyException)
         {
+            // The event changed or was deleted since the organizer opened it. Ask them to reload (409).
             return false;
         }
     }
@@ -75,6 +78,8 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
+        // A temporary database problem may require trying again. Keep the whole seat-hold operation
+        // together so that trying again does not repeat only half of the work.
         var strategy = db.Database.CreateExecutionStrategy();
         try
         {
@@ -84,15 +89,21 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
                     .SingleOrDefaultAsync(x => x.Id == reservationId, cancellationToken);
                 if (existing is not null)
                 {
+                    // Booking sent the same seat-hold reference again. Return what already happened,
+                    // without taking another set of seats away from other customers.
                     return Match(existing, eventId, userId, quantity);
                 }
 
+                // Save the seat count and the seat-hold record together, or undo both if something fails.
                 await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                // Check available seats and take them in one database action.
+                // Otherwise two customers could both see the last seat and both buy it.
                 var changed = await db.Events.Where(x => x.Id == eventId && x.Capacity - x.SeatsBooked >= quantity)
                     .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.SeatsBooked, x => x.SeatsBooked + quantity),
                         cancellationToken);
                 if (changed == 0)
                 {
+                    // No seats were taken. Check whether the event does not exist or has too few seats.
                     await transaction.RollbackAsync(cancellationToken);
                     var exists = await db.Events.AsNoTracking().AnyAsync(x => x.Id == eventId, cancellationToken);
                     return new(exists ? ReserveOutcome.NotEnoughSeats : ReserveOutcome.EventNotFound, null);
@@ -107,7 +118,8 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
         }
         catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 2601 or 2627 })
         {
-            // The losing transaction was rolled back, including its seat increment; return the winning replay.
+            // Another request saved this seat-hold reference first. Our seat changes were undone.
+            // Read their saved result instead of holding the seats twice.
             db.ChangeTracker.Clear();
             var winner = await db.SeatReservations.AsNoTracking()
                 .SingleAsync(x => x.Id == reservationId, cancellationToken);
@@ -131,6 +143,7 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
                 .SingleOrDefaultAsync(x => x.Id == reservationId, cancellationToken);
             if (reservation is null)
             {
+                // We have no seat hold with this reference, so there is nothing to return.
                 return new ReleaseResult(ReleaseOutcome.NoChange, null);
             }
 
@@ -144,6 +157,8 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
                 return new ReleaseResult(ReleaseOutcome.NoChange, reservation);
             }
 
+            // Mark the hold as returned and give the seats back together.
+            // If two requests ask for a return, only the first may increase available seats.
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
             var changed = await db.SeatReservations
                 .Where(x => x.Id == reservationId && x.UserId == userId && x.Status == ReservationStatuses.Held)
@@ -152,6 +167,7 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
                     .SetProperty(x => x.ReleasedAt, now), cancellationToken);
             if (changed == 0)
             {
+                // Another request already returned these seats. Do not return them a second time.
                 await transaction.RollbackAsync(cancellationToken);
                 return new ReleaseResult(ReleaseOutcome.NoChange, reservation);
             }

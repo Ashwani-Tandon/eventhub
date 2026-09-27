@@ -21,9 +21,11 @@ public sealed class LoginCommandHandler(
         LoginCommand request,
         CancellationToken cancellationToken)
     {
+        // Treat an email with capitals or extra spaces as the same email the user registered.
         var user = await users.FindByEmailAsync(request.Email.Trim().ToLowerInvariant(), cancellationToken);
         if (user is null || !hasher.Verify(user.PasswordHash, request.Password))
         {
+            // Use the same error for an unknown email and a wrong password, so strangers cannot find who has an account.
             return Result<LoginResponse>.Failure(UserErrors.InvalidCredentials);
         }
 

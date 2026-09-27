@@ -25,6 +25,8 @@ public sealed class BookingDbContext(DbContextOptions<BookingDbContext> options)
         booking.Property(x => x.PaymentRef).HasMaxLength(40).IsRequired();
         booking.HasIndex(x => x.ReservationId).IsUnique();
         booking.Property(x => x.IdempotencyKey).HasMaxLength(200);
+        // A user can make several purchases without sending a reference. But with a reference,
+        // the database refuses a second booking for that same user and reference.
         booking.HasIndex(x => new { x.UserId, x.IdempotencyKey }).IsUnique()
             .HasFilter("[IdempotencyKey] IS NOT NULL");
         booking.HasIndex(x => new { x.UserId, x.CreatedAt });
@@ -42,6 +44,7 @@ public sealed class BookingDbContext(DbContextOptions<BookingDbContext> options)
         request.Property(x => x.Id).ValueGeneratedOnAdd();
         request.Property(x => x.IdempotencyKey).HasMaxLength(200).IsRequired();
         request.Property(x => x.State).HasMaxLength(20).IsRequired();
+        // Even two clicks at the same moment can save only one purchase record for this user and reference.
         request.HasIndex(x => new { x.UserId, x.IdempotencyKey }).IsUnique();
         request.HasIndex(x => x.BookingId).IsUnique().HasFilter("[BookingId] IS NOT NULL");
         request.HasOne<Domain.Booking>().WithMany().HasForeignKey(x => x.BookingId)

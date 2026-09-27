@@ -16,6 +16,8 @@ public static class BookingRegistration
     {
         builder.AddSqlServerDbContext<BookingDbContext>("bookingdb", configureDbContextOptions: options =>
             options.UseSqlServer(sql => sql.CommandTimeout(15)));
+        // Give the booking task one shared database helper. Preparing a booking and saving it
+        // must use the same helper, or the save would not know about the prepared booking.
         builder.Services.AddScoped<BookingRepository>();
         builder.Services.AddScoped<IBookingRepository>(services => services.GetRequiredService<BookingRepository>());
         builder.Services.AddScoped<IBookingRequestRepository>(services => services.GetRequiredService<BookingRepository>());
@@ -42,6 +44,7 @@ public static class BookingRegistration
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
+        // Update the database structure without losing purchases. Add demo bookings only if it is empty.
         await db.Database.MigrateAsync(cancellationToken);
         if (await db.Bookings.AnyAsync(cancellationToken))
         {

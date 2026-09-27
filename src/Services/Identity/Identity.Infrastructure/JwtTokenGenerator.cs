@@ -25,6 +25,9 @@ public sealed class JwtTokenGenerator(
     {
         var now = clock.GetUtcNow();
         var expires = now.AddMinutes(options.Value.LifetimeMinutes);
+        // The login token remembers user details at login time. After Admin changes their role,
+        // they must log in again to get a token showing the new role.
+        // Add a digital signature so services can spot changed tokens; the details are still readable.
         var token = new JwtSecurityToken(options.Value.Issuer, options.Value.Audience,
             [new Claim(TokenClaims.Subject, user.Id.ToString()), new Claim(TokenClaims.Email, user.Email),
              new Claim(TokenClaims.Name, user.FullName), new Claim(TokenClaims.Role, user.Role)],

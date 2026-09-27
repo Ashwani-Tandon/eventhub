@@ -47,6 +47,13 @@ working code. So:
   nearest README instead of making it invalid. Leave generated files under their generator's control.
   Explain non-obvious functions or control flow with concise comments, and keep explanations accurate
   when the file's responsibilities change.
+- Explain each function's purpose in plain language, including private helpers. Put comments beside
+  complex branches, loops, switches, transactions, concurrency checks, recovery paths, and timing values:
+  describe why the logic exists and what happens next. Explain unfamiliar framework/library behavior
+  where it is used. Do not narrate obvious variable assignments or merely repeat the code in English.
+  Use everyday language and user journeys: "the user clicks Book again", "return the seats", or
+  "show the booking already made". Explain technical terms before relying on them. Describe the
+  situation, the action, and the reason, so a newcomer can follow the code without knowing the architecture.
 
 ## Working one step at a time
 

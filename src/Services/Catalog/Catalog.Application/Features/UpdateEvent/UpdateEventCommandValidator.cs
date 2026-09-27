@@ -28,6 +28,7 @@ public sealed class UpdateEventCommandValidator : AbstractValidator<UpdateEventC
             .WithMessage("RowVersion must be the base64 value returned by Catalog.");
     }
 
+    /// <summary>Checks that the organizer sent a revision stamp in the format Catalog returned.</summary>
     private static bool IsBase64RowVersion(string value)
     {
         Span<byte> bytes = stackalloc byte[8];

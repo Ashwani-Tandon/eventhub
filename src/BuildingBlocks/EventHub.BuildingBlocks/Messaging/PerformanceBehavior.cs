@@ -45,6 +45,7 @@ public sealed class PerformanceBehavior<TRequest, TResponse>(
         var response = await continuation(cancellationToken);
         var elapsed = timeProvider.GetElapsedTime(startedAt);
 
+// More than half a second means "record a slow request", not "stop it". The user can still get success.
         if (elapsed > SlowRequestThreshold)
         {
             LogSlowRequest(

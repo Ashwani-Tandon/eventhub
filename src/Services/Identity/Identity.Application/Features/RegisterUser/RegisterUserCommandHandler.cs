@@ -37,6 +37,7 @@ public sealed class RegisterUserCommandHandler(
             return Result<LoginResponse>.Failure(UserErrors.DuplicateEmail);
         }
 
+        // Give the user a login token only after their account is actually saved.
         return Result<LoginResponse>.Success(tokens.Generate(user));
     }
 }

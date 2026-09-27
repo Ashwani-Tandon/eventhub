@@ -39,6 +39,7 @@ public sealed class DeleteEventCommandHandler(
             return Result.Failure(EventErrors.Forbidden);
         }
 
+        // Owning the event is not enough to delete it: refuse while customers still have booked seats.
         var deletion = eventItem.CanBeDeleted();
         if (deletion.IsFailure)
         {

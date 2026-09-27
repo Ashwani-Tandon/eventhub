@@ -1,11 +1,11 @@
-// Defines the atomic claim and recovery operations required by idempotent booking creation.
-// Infrastructure implements their concurrency details while the handler reasons in explicit outcomes.
+// Lists the database actions Booking needs to recognize a user's repeated purchase.
+// The handler asks these questions; the repository handles saving and looking up the answers.
 using Booking.Domain;
 using EventHub.BuildingBlocks.Results;
 
 namespace Booking.Application.Ports;
 
-/// <summary>Describes whether this caller owns work, must wait, or can return a completed booking.</summary>
+/// <summary>Answers: start the purchase, wait for it, show the finished booking, or reject changed details.</summary>
 public enum BookingRequestClaimOutcome
 {
     Acquired,
@@ -22,6 +22,7 @@ public sealed record BookingRequestClaim(
 /// <summary>Persistence boundary for the pre-side-effect request claim.</summary>
 public interface IBookingRequestRepository
 {
+    /// <summary>Checks this purchase reference; Acquired means this request may start or finish the purchase.</summary>
     Task<BookingRequestClaim> ClaimAsync(
         Guid userId,
         string idempotencyKey,
@@ -32,11 +33,13 @@ public interface IBookingRequestRepository
         TimeSpan leaseDuration,
         CancellationToken cancellationToken);
 
+    /// <summary>Remembers the booking number and marks the purchase finished, so another click shows the same booking.</summary>
     Task<Result> CompleteAsync(
         BookingRequest request,
         int bookingId,
         DateTimeOffset now,
         CancellationToken cancellationToken);
 
+    /// <summary>Removes an unfinished purchase after its seats are returned, allowing the user to try again.</summary>
     Task<Result> DeleteAsync(BookingRequest request, CancellationToken cancellationToken);
 }

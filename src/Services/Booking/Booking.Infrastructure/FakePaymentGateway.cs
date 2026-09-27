@@ -30,18 +30,22 @@ public sealed class FakePaymentGateway(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        // Alice and Bob may use the same purchase reference; their payments must still be separate.
         var identity = $"{userId:N}:{requestKey}";
         if (results.TryGetValue(identity, out var stored))
         {
             return Task.FromResult(stored);
         }
 
+        // Calculate a repeatable payment result from the user and reference; repeats get the same normal result.
+        // This only simulates payment; it does not charge money or contact a bank.
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(identity));
         var declined = hash[0] % 10 == 0 || (environment.IsDevelopment() && simulateFailure);
         var reference = declined ? null : $"PAY-{Convert.ToHexString(hash.AsSpan(0, 4))}";
         var candidate = new PaymentResult(!declined, reference);
         if (results.TryAdd(identity, candidate))
         {
+            // If two calls reach here together, remember one result and record the payment only once.
             LogPayment(logger, userId, requestKey, amount, candidate.Reference ?? "DECLINED", null);
             return Task.FromResult(candidate);
         }

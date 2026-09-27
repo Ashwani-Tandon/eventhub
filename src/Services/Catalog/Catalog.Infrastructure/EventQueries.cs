@@ -43,6 +43,7 @@ public sealed class EventQueries(CatalogDbContext db) : IEventQueries
             query = query.Where(x => x.Price <= maxPrice);
         }
 
+        // Count all matching events before selecting this page, so the user knows how many pages exist.
         var total = await query.CountAsync(cancellationToken);
         var rows = await Project(query.OrderBy(x => x.StartsAt)
             .Skip((criteria.Page - 1) * criteria.PageSize).Take(criteria.PageSize))
@@ -90,8 +91,10 @@ public sealed class EventQueries(CatalogDbContext db) : IEventQueries
             x.StartsAt, x.Price, x.Capacity, x.SeatsBooked, x.OrganizerId, x.RowVersion));
     }
 
+    /// <summary>Prepares event details for the caller, including the revision stamp needed for their next edit.</summary>
     private static EventDto ToDto(EventReadModel row)
     {
+        // After reading the event, turn its revision stamp into text so it can travel in the response.
         return new EventDto(row.Id, row.Title, row.Description, row.Category, row.Venue, row.City,
             row.StartsAt, row.Price, row.Capacity, row.SeatsBooked, row.Capacity - row.SeatsBooked,
             row.OrganizerId, Convert.ToBase64String(row.RowVersion));

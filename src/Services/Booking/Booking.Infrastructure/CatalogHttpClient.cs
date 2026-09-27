@@ -75,6 +75,8 @@ public sealed class CatalogHttpClient(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        // Send the user's login token to identify who is buying, plus Booking's secret to prove
+        // this seat change comes from Booking. A customer cannot skip payment and change seats directly.
         request.Headers.Add(BookingServiceOptions.HeaderName, options.Value.Key);
         try
         {
@@ -97,6 +99,7 @@ public sealed class CatalogHttpClient(
     {
         if ((int)response.StatusCode >= 500 || response.StatusCode is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests)
         {
+            // Catalog could not complete the request. Tell the user the service is unavailable (503).
             return BookingErrors.CatalogUnavailable;
         }
 
@@ -123,6 +126,8 @@ public sealed class CatalogHttpClient(
         Exception exception,
         CancellationToken cancellationToken)
     {
+        // A call taking too long and a user cancelling can look similar here.
+        // Report Catalog as unavailable only for the timeout, not when the user cancelled.
         return exception is HttpRequestException or JsonException
             || (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
     }

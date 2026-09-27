@@ -1,10 +1,10 @@
-// Records the durable identity and progress of one idempotent booking request.
-// It is claimed before external side effects so retries reuse the same reservation and payment identities.
+// Remembers a user's purchase reference, ticket choices, and whether the purchase is finished.
+// Save this before holding seats or paying, so a second click can recognize the same purchase.
 using EventHub.BuildingBlocks.Domain;
 
 namespace Booking.Domain;
 
-/// <summary>Owns the immutable request fingerprint and the recoverable processing state.</summary>
+/// <summary>Remembers what the user wanted to buy and how far that purchase has progressed.</summary>
 public sealed class BookingRequest : Entity<long>
 {
     private BookingRequest() : base(0)
@@ -23,7 +23,7 @@ public sealed class BookingRequest : Entity<long>
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset LeaseExpiresAt { get; private set; }
 
-    /// <summary>Creates the winner's pre-side-effect claim with one stable reservation identity.</summary>
+    /// <summary>Starts the purchase record and gives its seat hold a reference we can reuse after a restart.</summary>
     public static BookingRequest Create(
         Guid userId,
         string idempotencyKey,
@@ -33,6 +33,8 @@ public sealed class BookingRequest : Entity<long>
         DateTimeOffset now,
         TimeSpan leaseDuration)
     {
+        // Give this purchase one seat-hold reference and remember it.
+        // If the app stops midway, use that same reference instead of holding seats twice.
         return new BookingRequest
         {
             UserId = userId,
@@ -47,7 +49,7 @@ public sealed class BookingRequest : Entity<long>
         };
     }
 
-    /// <summary>Prevents one key from being replayed with different purchase inputs.</summary>
+    /// <summary>Checks that a repeated purchase reference still asks for the same event, tickets, and payment-demo choice.</summary>
     public bool Matches(int eventId, int quantity, bool simulatePaymentFailure)
     {
         return EventId == eventId && Quantity == quantity && SimulatePaymentFailure == simulatePaymentFailure;

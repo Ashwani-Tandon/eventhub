@@ -30,6 +30,8 @@ public sealed class ReserveSeatsCommandHandler(
 
         var result = await events.TryReserveAsync(request.ReservationId, request.EventId, userId,
             request.Quantity, clock.GetUtcNow(), cancellationToken);
+        // Turn the database's answer into a result the caller can understand: seats held, event missing,
+        // too few seats, or the same reference used for different details.
         return result.Outcome switch
         {
             ReserveOutcome.Success => Result<ReservationDto>.Success(new(result.Reservation!.Id, result.Reservation.Status)),

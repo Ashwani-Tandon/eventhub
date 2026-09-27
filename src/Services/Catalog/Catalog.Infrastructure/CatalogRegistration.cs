@@ -21,6 +21,7 @@ public static class CatalogRegistration
     {
         builder.AddSqlServerDbContext<CatalogDbContext>("catalogdb", configureDbContextOptions: options =>
             options.UseSqlServer(sql => sql.CommandTimeout(15)));
+        // Use the same database helper to prepare event changes and save them during this request.
         builder.Services.AddScoped<CatalogRepository>();
         builder.Services.AddScoped<IEventRepository>(services => services.GetRequiredService<CatalogRepository>());
         builder.Services.AddScoped<IReservationRepository>(services => services.GetRequiredService<CatalogRepository>());
@@ -45,6 +46,8 @@ public static class CatalogRegistration
 
         var clock = scope.ServiceProvider.GetRequiredService<TimeProvider>();
         var data = DemoData.Generate(clock.GetUtcNow());
+        // Demo cancelled bookings must not take seats. Count only confirmed demo purchases,
+        // so the event's booked seats match the purchases shown in Booking.
         var confirmedSeats = data.Bookings.Where(x => x.Status == DemoData.Confirmed)
             .GroupBy(x => x.EventId).ToDictionary(x => x.Key, x => x.Sum(y => y.Quantity));
         var entities = data.Events.Select(seed => Event.Seed(seed.Id, seed.Title, seed.Description,
@@ -53,6 +56,8 @@ public static class CatalogRegistration
         db.Events.AddRange(entities);
         await db.SaveChangesAsync(cancellationToken);
 
+        // Check the database gave each demo event the expected number before adding its seat holds.
+        // Otherwise a demo booking could accidentally refer to the wrong event.
         for (var index = 0; index < entities.Count; index++)
         {
             if (entities[index].Id != data.Events[index].Id)

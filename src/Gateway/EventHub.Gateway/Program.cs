@@ -11,6 +11,7 @@ var app = builder.Build();
 
 app.Use(async (context, next) =>
 {
+// A customer must buy through Booking. Block public access to the routes that directly change seats.
     if (context.Request.Path.StartsWithSegments(
             "/catalog/internal",
             StringComparison.OrdinalIgnoreCase))
@@ -19,6 +20,7 @@ app.Use(async (context, next) =>
         return;
     }
 
+// Pass other requests to the forwarding tool, YARP, which sends them to the service named in our settings.
     await next(context);
 });
 

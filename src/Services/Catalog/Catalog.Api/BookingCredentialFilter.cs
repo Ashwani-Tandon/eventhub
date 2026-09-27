@@ -31,6 +31,8 @@ public sealed class BookingCredentialFilter(IOptions<BookingServiceOptions> opti
         EndpointFilterDelegate next)
     {
         var supplied = context.HttpContext.Request.Headers[BookingServiceOptions.HeaderName].ToString();
+        // Check whether the caller knows Booking's secret. Turn both secrets into equal-size fingerprints,
+        // then compare without revealing which part was wrong through how long the check takes.
         var suppliedHash = SHA256.HashData(Encoding.UTF8.GetBytes(supplied));
         var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(options.Value.Key));
         return CryptographicOperations.FixedTimeEquals(suppliedHash, expectedHash)

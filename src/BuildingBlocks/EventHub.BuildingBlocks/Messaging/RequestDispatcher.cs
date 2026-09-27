@@ -53,10 +53,13 @@ internal sealed class RequestDispatcher<TRequest, TResponse> : IRequestDispatche
 
         foreach (var behavior in behaviors)
         {
+// Remember the next step before adding this check in front of it.
+            // Each check must move to the next step, rather than accidentally calling itself forever.
             var currentNext = next;
             next = token => behavior.Handle(typedRequest, currentNext, token);
         }
 
+// Start the checks in order. Bad input stops here before the app performs the user's task.
         return await next(cancellationToken);
     }
 }

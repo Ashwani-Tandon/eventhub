@@ -21,6 +21,8 @@ public static class IdentityRegistration
     {
         builder.AddSqlServerDbContext<IdentityDbContext>("identitydb", configureDbContextOptions: options =>
             options.UseSqlServer(sql => sql.CommandTimeout(15)));
+        // Use one database helper throughout the user's request, so the save knows
+        // about the user records that were loaded or prepared earlier in that request.
         builder.Services.AddScoped<UserRepository>();
         builder.Services.AddScoped<IUserRepository>(s => s.GetRequiredService<UserRepository>());
         builder.Services.AddScoped<IUserQueries>(s => s.GetRequiredService<UserRepository>());
@@ -38,6 +40,7 @@ public static class IdentityRegistration
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+        // Update the database structure first. Restarting the app must not add the demo users again.
         await db.Database.MigrateAsync(cancellationToken);
         if (await db.Users.AnyAsync(cancellationToken))
         {

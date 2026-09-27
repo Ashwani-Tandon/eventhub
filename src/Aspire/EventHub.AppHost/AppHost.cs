@@ -6,6 +6,8 @@ var sqlPassword = builder.AddParameter("sql-password", secret: true);
 var jwtKey = builder.AddParameter("jwt-key", secret: true);
 var bookingServiceKey = builder.AddParameter("booking-service-key", secret: true);
 
+// Keep saved users, events, and bookings when the app stops and starts again.
+// Each service has its own database, even though this computer runs them on one SQL server.
 var sql = builder.AddSqlServer("sql", password: sqlPassword)
     .WithDataVolume()
     .WithLifetime(ContainerLifetime.Persistent);
@@ -25,6 +27,8 @@ var catalog = builder.AddProject<Projects.Catalog_Api>("catalog")
     .WithEnvironment("Jwt__Key", jwtKey)
     .WithEnvironment("BookingService__Key", bookingServiceKey);
 
+// Tell Booking how to reach Catalog, and wait until Catalog is ready before starting Booking.
+// On its first start, Booking needs Catalog's event details to create the demo bookings.
 var booking = builder.AddProject<Projects.Booking_Api>("booking")
     .WithReference(bookingDatabase)
     .WaitFor(bookingDatabase)

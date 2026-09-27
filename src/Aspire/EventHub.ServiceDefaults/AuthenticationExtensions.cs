@@ -64,6 +64,7 @@ public static class AuthenticationExtensions
         builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<Microsoft.Extensions.Options.IOptions<JwtOptions>>((options, jwt) =>
             {
+// Keep the original names of the details in the login token, so every service reads the user the same way.
                 options.MapInboundClaims = false;
                 options.TokenValidationParameters = new()
                 {
@@ -72,6 +73,7 @@ public static class AuthenticationExtensions
                     ValidateAudience = true,
                     ValidAudience = jwt.Value.Audience,
                     ValidateLifetime = true,
+// Once the login token expires, require the user to log in again without extra grace time.
                     ClockSkew = TimeSpan.Zero,
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Value.Key)),
@@ -80,6 +82,7 @@ public static class AuthenticationExtensions
                     RoleClaimType = TokenClaims.Role
                 };
             });
+// Admin can do organizer tasks too. Tasks meant only for Admin still require the Admin role.
         builder.Services.AddAuthorizationBuilder()
             .AddPolicy(AuthPolicies.Organizer, policy => policy.RequireRole(AuthPolicies.Organizer, AuthPolicies.Admin))
             .AddPolicy(AuthPolicies.Admin, policy => policy.RequireRole(AuthPolicies.Admin));
@@ -95,6 +98,7 @@ public static class AuthenticationExtensions
 /// </summary>
 internal sealed class HttpCurrentUser(IHttpContextAccessor accessor) : ICurrentUserProfile
 {
+// Read user details only after their login token has been checked and accepted.
     private ClaimsPrincipal? Principal => accessor.HttpContext?.User.Identity?.IsAuthenticated == true ? accessor.HttpContext.User : null;
 
     public Guid? UserId => Guid.TryParse(

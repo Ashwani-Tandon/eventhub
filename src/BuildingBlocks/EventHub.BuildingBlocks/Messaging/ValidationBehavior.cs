@@ -50,6 +50,8 @@ public sealed class ValidationBehavior<TRequest, TResponse>(
             validators.Select(validator =>
                 validator.ValidateAsync(context, cancellationToken)));
 
+// Collect problems from the input checks and group them by field, such as Title or Quantity.
+        // Remove repeated messages so the user sees each problem only once.
         var errors = validationResults
             .SelectMany(static result => result.Errors)
             .Where(static failure => failure is not null)

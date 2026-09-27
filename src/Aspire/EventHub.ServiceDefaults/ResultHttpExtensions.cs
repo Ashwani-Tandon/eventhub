@@ -44,6 +44,8 @@ public static class ResultHttpExtensions
     /// </summary>
     private static IResult CreateProblem(Error error)
     {
+// Turn problems such as "event missing" or "not enough seats" into the response number
+        // the caller expects, such as 404 or 409. Every service uses this same translation.
         var statusCode = error.Type switch
         {
             ErrorType.Validation => StatusCodes.Status400BadRequest,
