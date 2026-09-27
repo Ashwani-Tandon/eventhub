@@ -10,6 +10,11 @@ public interface IBookingRepository
         int id,
         CancellationToken cancellationToken);
 
+    /// <summary>Finds a booking created before a crash could mark its request claim complete.</summary>
+    Task<Domain.Booking?> FindByReservationIdAsync(
+        Guid reservationId,
+        CancellationToken cancellationToken);
+
     /// <summary>Tracks a confirmed booking for the next local save.</summary>
     void Add(Domain.Booking booking);
 }

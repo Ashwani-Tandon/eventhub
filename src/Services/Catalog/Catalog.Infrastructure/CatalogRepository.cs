@@ -1,5 +1,5 @@
-// Implements tracked event writes plus atomic reservation and release operations.
-// Database-side conditional updates preserve capacity and idempotency under concurrent requests.
+// Implements tracked version-checked event writes plus atomic reservation and release operations.
+// Database-side conditions preserve edit concurrency, capacity, and reservation idempotency.
 using Catalog.Application;
 using Catalog.Domain;
 using Microsoft.Data.SqlClient;
@@ -28,6 +28,24 @@ public sealed class CatalogRepository(CatalogDbContext db) : IEventRepository, I
     public void Add(Event eventItem)
     {
         db.Events.Add(eventItem);
+    }
+
+    /// <summary>Saves an edit only if the client-provided row version still matches the database.</summary>
+    public async Task<bool> SaveUpdateAsync(
+        Event eventItem,
+        byte[] originalRowVersion,
+        CancellationToken cancellationToken)
+    {
+        db.Entry(eventItem).Property(x => x.RowVersion).OriginalValue = originalRowVersion;
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return false;
+        }
     }
 
     /// <summary>

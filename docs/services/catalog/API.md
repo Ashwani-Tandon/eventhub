@@ -99,7 +99,7 @@ Ownership, `seatsBooked`, and `seatsLeft` are not accepted as editable fields. D
 
 ## 5. Update an event — PUT `/events/{id}`
 
-Supply a positive route ID and the same complete JSON body as creation. This is replacement of editable fields, not a partial PATCH.
+Supply a positive route ID and the same complete JSON body as creation, plus the `rowVersion` base64 string returned when the event was read. This is replacement of editable fields, not a partial PATCH.
 Title, description, category, price, and capacity use the same validation rules/messages as creation; invalid route ID uses `'Id' must be greater than '0'.`
 An Organizer may update only their own event; Admin may update any event.
 
@@ -112,8 +112,10 @@ Success returns the updated event with existing booked seats retained. Existing 
 | Different organizer (not Admin)  | 403  | `Event.Forbidden` | `You do not own this event.`                                                                         |
 | Capacity below booked seats      | 400  | `Event.Invalid`   | detail: `The event is invalid.`; `errors.Capacity`: `Capacity cannot be below seats already booked.` |
 | Changed start time not in future | 400  | `Event.Invalid`   | detail: `The event is invalid.`; `errors.StartsAt`: `Start time must be in the future.`              |
+| Missing or malformed row version | 400  | `Validation.Failed` | `RowVersion must be the base64 value returned by Catalog.`                                        |
+| Event changed since it was read   | 409  | `Event.ConcurrencyConflict` | `This event was changed by someone else — reload and try again.`                            |
 
-Optimistic concurrency tokens (`rowVersion`) are not implemented yet; the current API does not detect a stale editor's overwrite.
+SQL Server updates the event's eight-byte `rowversion` whenever the row changes, including seat-count changes. Catalog tells EF Core that the submitted value is the original version; if the database now has another version, `DbUpdateConcurrencyException` becomes the expected 409 above. The response carries the new version, so the next edit must use that value. This is optimistic concurrency: it avoids long database locks but deliberately asks a stale editor to reload and reconcile.
 
 ## 6. Delete an event — DELETE `/events/{id}`
 
@@ -179,6 +181,7 @@ The credential is supplied by configuration and must not be copied into committe
 | `capacity`                                          | Maximum seats                                                 |
 | `seatsBooked`                                       | Seats currently held/booked through reservations              |
 | `seatsLeft`                                         | Calculated as capacity minus seatsBooked; zero means sold out |
+| `rowVersion`                                        | Base64 optimistic-concurrency token required by the next PUT  |
 
 ## Reading errors and domain safeguards
 

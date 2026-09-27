@@ -8,9 +8,9 @@ This reference explains all five business operations, their inputs and responses
 Booking owns `bookingdb`, including the purchaser, quantity, payment reference, reservation identity, and cancellation state.
 It copies the event title, start time, organizer, and price at purchase time. Those snapshots let history and statistics work without contacting Catalog and retain the purchase-time facts after an event changes.
 
-A purchase runs in this order: read the event → check its start time → reserve seats in Catalog → simulate payment → save a Confirmed booking.
+A keyed purchase first commits a `BookingRequest` claim, then runs: read the event → check its start time → reserve seats in Catalog → simulate payment → save a Confirmed booking → mark the claim Completed.
 If payment or saving fails after reservation, Booking releases that reservation. This is compensation, not a transaction shared across databases.
-Payment is fake: no money is charged. Approximately 90% of reservation identities succeed; the same identity gives a stable simulated outcome.
+Payment is fake: no money is charged. Approximately 90% of request identities succeed; the same `(userId, Idempotency-Key)` gives a stable simulated outcome and payment reference.
 
 ## APIs at a glance
 
@@ -29,7 +29,7 @@ These authentication/role failures occur before the handler and do not promise t
 
 ## 1. Purchase tickets — POST `/bookings`
 
-Send a JSON body; user identity and price are taken from trusted server data, not this body:
+Send a JSON body; user identity and price are taken from trusted server data, not this body. For a retryable purchase, also send `Idempotency-Key: <opaque value>` (maximum 200 characters):
 
 ```json
 {
@@ -47,7 +47,16 @@ Send a JSON body; user identity and price are taken from trusted server data, no
 
 The event must not have started. Success returns 201, a booking object with `status: "Confirmed"`, and a Location header.
 That Location identifies the created resource; there is currently no GET-by-booking-ID operation.
-Each submission is a new purchase: creation does not yet accept an idempotency key. Do not blindly repeat a timed-out purchase expecting the same booking.
+
+Repeating a key for the same event, quantity, and development failure switch returns the original 201 response and booking ID. A concurrent loser polls the durable claim for up to five seconds; it does not call Catalog or payment. Reusing the key with changed inputs returns 409 `Booking.IdempotencyMismatch`, `This idempotency key was already used with different booking details.` Omitting the header preserves the original behavior: every submission is a new purchase.
+
+### Why the claim comes first
+
+A unique index on the final Booking row is too late: two requests could both reserve and pay before either inserts that row. `BookingRequests` instead has a unique `(UserId, IdempotencyKey)` index and is committed before the first Catalog call. Its stored reservation GUID makes Catalog replay-safe, while the fake payment derives one result from the user and key. Booking also keeps a filtered unique `(UserId, IdempotencyKey)` index as a second database guard.
+
+A Processing claim has a two-minute lease. A normal concurrent replay waits briefly; after the lease expires, one caller atomically takes it over and resumes with the stored identities. If a crash happened after the Booking row was saved but before the claim was marked Completed, recovery finds that row by reservation GUID and finishes the claim instead of repeating side effects. Expected 400/404/409/422 failures remove the claim; where a reservation exists, compensation must succeed before removal.
+
+The remaining limitation is the unavoidable distributed crash window: Booking cannot atomically commit its SQL row together with Catalog or a real payment provider. Stable identities make retries convergent, but no background worker resumes abandoned claims; a caller must replay the same key. A lease takeover also assumes the original worker is no longer active after two minutes. This learning design is not a replacement for a payment provider's durable idempotency ledger or an outbox/saga.
 
 | Failure                                            | HTTP | Code                             | Message received                                                                               |
 | -------------------------------------------------- | ---- | -------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -56,11 +65,12 @@ Each submission is a new purchase: creation does not yet accept an idempotency k
 | Event missing                                      | 404  | `Booking.EventNotFound`          | `Event not found.`                                                                             |
 | Event already started                              | 400  | `Booking.EventStarted`           | detail: `The event has already started.`; `errors.EventId`: `The event must not have started.` |
 | Insufficient seats                                 | 409  | `Reservation.NotEnoughSeats`     | `Not enough seats are available.`                                                              |
+| Key reused with different request details          | 409  | `Booking.IdempotencyMismatch`    | `This idempotency key was already used with different booking details.`                         |
 | Payment declined and compensation succeeded        | 422  | `Booking.PaymentFailed`          | `Payment failed. Reserved seats have been released.`                                           |
 | Catalog unreachable, timeout, or unusable response | 503  | `Booking.CatalogUnavailable`     | `Catalog service unavailable`                                                                  |
 | Local save failed and compensation succeeded       | 503  | `Booking.PersistenceUnavailable` | `Booking database unavailable`                                                                 |
 
-If releasing seats after a failure also fails, the dependency error is returned instead of claiming seats were released. There is no durable interrupted-creation recovery yet; the reservation identity is logged for diagnosis.
+If releasing seats after a failure also fails, the dependency error is returned instead of claiming seats were released, and the claim remains for safe recovery. A matching replay that is still inside the active five-second observation window can receive 503 `Booking.RequestInProgress`; it should retry with the same key.
 The Domain also protects quantity with `Booking.InvalidQuantity`: `Quantity must be between 1 and 10.`; normally the request validator rejects this first with the message above.
 
 ## 2. Your history — GET `/bookings/mine`

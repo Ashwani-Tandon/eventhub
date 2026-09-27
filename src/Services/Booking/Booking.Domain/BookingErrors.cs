@@ -13,6 +13,8 @@ public static class BookingErrors
     public static readonly Error EventNotFound = Error.NotFound("Booking.EventNotFound", "Event not found.");
     public static readonly Error CatalogUnavailable = Error.Unavailable("Booking.CatalogUnavailable", "Catalog service unavailable");
     public static readonly Error PersistenceUnavailable = Error.Unavailable("Booking.PersistenceUnavailable", "Booking database unavailable");
+    public static readonly Error RequestInProgress = Error.Unavailable("Booking.RequestInProgress", "This booking request is still processing. Try again shortly.");
+    public static readonly Error IdempotencyMismatch = Error.Conflict("Booking.IdempotencyMismatch", "This idempotency key was already used with different booking details.");
     public static readonly Error PaymentFailed = Error.Unprocessable("Booking.PaymentFailed", "Payment failed. Reserved seats have been released.");
     public static readonly Error NotConfirmed = Error.Validation("Booking.NotConfirmed", "Only confirmed bookings can begin cancellation.");
     public static readonly Error EventStarted = Error.Validation("Booking.EventStarted", "The event has already started.",

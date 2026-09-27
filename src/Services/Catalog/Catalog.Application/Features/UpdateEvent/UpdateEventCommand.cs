@@ -20,4 +20,5 @@ public sealed record UpdateEventCommand(
     string City,
     DateTimeOffset StartsAt,
     decimal Price,
-    int Capacity) : ICommand<EventDto>;
+    int Capacity,
+    string RowVersion) : ICommand<EventDto>;

@@ -63,6 +63,28 @@ Content-Type: application/json
 GET {{catalog}}/events/mine
 Authorization: Bearer {{organizerLogin.response.body.$.accessToken}}
 
+### create an isolated event for optimistic-concurrency checks
+# @name concurrencyEvent
+POST {{catalog}}/events
+Authorization: Bearer {{organizerLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"title":"Concurrency original","description":"Step 16 proof","category":"Tech","venue":"Lab","city":"Delhi","startsAt":"2027-12-01T10:00:00Z","price":100,"capacity":20}
+
+### fresh rowVersion -> 200 and a new rowVersion
+PUT {{catalog}}/events/{{concurrencyEvent.response.body.$.id}}
+Authorization: Bearer {{organizerLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"title":"Concurrency fresh edit","description":"Step 16 proof","category":"Tech","venue":"Lab","city":"Delhi","startsAt":"2027-12-01T10:00:00Z","price":100,"capacity":20,"rowVersion":"{{concurrencyEvent.response.body.$.rowVersion}}"}
+
+### stale original rowVersion -> 409 Event.ConcurrencyConflict with reload message
+PUT {{catalog}}/events/{{concurrencyEvent.response.body.$.id}}
+Authorization: Bearer {{organizerLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"title":"Concurrency stale edit","description":"Step 16 proof","category":"Tech","venue":"Lab","city":"Delhi","startsAt":"2027-12-01T10:00:00Z","price":100,"capacity":20,"rowVersion":"{{concurrencyEvent.response.body.$.rowVersion}}"}
+
 ### internal path through gateway → 404
 POST {{catalog}}/internal/events/2/reservations
 Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}

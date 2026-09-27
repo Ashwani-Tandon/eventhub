@@ -24,6 +24,7 @@ public sealed class Booking : Entity<int>
     public string Status { get; private set; } = BookingStatus.Confirmed;
     public string PaymentRef { get; private set; } = "";
     public Guid ReservationId { get; private set; }
+    public string? IdempotencyKey { get; private set; }
     public bool SeatReleasePending { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -38,6 +39,7 @@ public sealed class Booking : Entity<int>
         decimal unitPrice,
         string paymentRef,
         Guid reservationId,
+        string? idempotencyKey,
         DateTimeOffset now)
     {
         if (quantity is < 1 or > 10)
@@ -51,7 +53,7 @@ public sealed class Booking : Entity<int>
         }
 
         return Result<Booking>.Success(Build(userId, eventId, eventTitle, eventStartsAt,
-            organizerId, quantity, unitPrice, paymentRef, reservationId, now));
+            organizerId, quantity, unitPrice, paymentRef, reservationId, idempotencyKey, now));
     }
 
     /// <summary>Restores deterministic demo purchases, including historical and already-cancelled bookings.</summary>
@@ -69,7 +71,7 @@ public sealed class Booking : Entity<int>
         DateTimeOffset createdAt)
     {
         var booking = Build(userId, eventId, eventTitle, eventStartsAt, organizerId,
-            quantity, unitPrice, paymentRef, reservationId, createdAt);
+            quantity, unitPrice, paymentRef, reservationId, null, createdAt);
         booking.Status = status;
         return booking;
     }
@@ -109,6 +111,7 @@ public sealed class Booking : Entity<int>
         decimal unitPrice,
         string paymentRef,
         Guid reservationId,
+        string? idempotencyKey,
         DateTimeOffset createdAt)
     {
         return new Booking
@@ -123,6 +126,7 @@ public sealed class Booking : Entity<int>
             Total = quantity * unitPrice,
             PaymentRef = paymentRef,
             ReservationId = reservationId,
+            IdempotencyKey = idempotencyKey,
             CreatedAt = createdAt
         };
     }

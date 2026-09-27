@@ -4,6 +4,7 @@
 @booking = {{gateway}}/booking
 @eventId = 2
 @password = Demo@123
+@idempotencyKey = step16-same-key-001
 
 ### Attendee login
 # @name attendeeLogin
@@ -69,6 +70,46 @@ Content-Type: application/json
   "quantity": 2,
   "simulatePaymentFailure": false
 }
+
+### Idempotent purchase -> 201; repeat this exact request -> same 201 body and booking id
+# @name idempotentPurchase
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Idempotency-Key: {{idempotencyKey}}
+Content-Type: application/json
+
+{
+  "eventId": {{eventId}},
+  "quantity": 1,
+  "simulatePaymentFailure": false
+}
+
+### Mismatched reuse -> 409 and no new reservation/payment/booking
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Idempotency-Key: {{idempotencyKey}}
+Content-Type: application/json
+
+{
+  "eventId": {{eventId}},
+  "quantity": 2,
+  "simulatePaymentFailure": false
+}
+
+### Different key -> a distinct booking (change the suffix again to demonstrate another purchase)
+POST {{booking}}/bookings
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Idempotency-Key: step16-different-key-001
+Content-Type: application/json
+
+{
+  "eventId": {{eventId}},
+  "quantity": 1,
+  "simulatePaymentFailure": false
+}
+
+### Parallel same-key proof
+# Run ./parallel-booking.sh <attendee access token> 2; both responses must have the same booking id.
 
 ### Forced development payment failure -> 422, seats restored to their pre-request value
 POST {{booking}}/bookings

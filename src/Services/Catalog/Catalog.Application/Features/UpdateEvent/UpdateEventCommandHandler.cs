@@ -13,7 +13,6 @@ namespace Catalog.Application.Features.UpdateEvent;
 /// </summary>
 public sealed class UpdateEventCommandHandler(
     IEventRepository events,
-    IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     TimeProvider clock) : ICommandHandler<UpdateEventCommand, EventDto>
 {
@@ -47,7 +46,12 @@ public sealed class UpdateEventCommandHandler(
             return Result<EventDto>.Failure(update.Error!);
         }
 
-        await unitOfWork.SaveAsync(cancellationToken);
+        var saved = await events.SaveUpdateAsync(eventItem, Convert.FromBase64String(request.RowVersion), cancellationToken);
+        if (!saved)
+        {
+            return Result<EventDto>.Failure(EventErrors.ConcurrencyConflict);
+        }
+
         return Result<EventDto>.Success(EventMappings.ToDto(eventItem));
     }
 }

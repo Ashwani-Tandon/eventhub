@@ -65,6 +65,7 @@ public sealed class Event : Entity<int>
     public int SeatsBooked { get; private set; }
     public Guid OrganizerId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+    public byte[] RowVersion { get; private set; } = [];
 
     /// <summary>
     /// Validates new event rules and creates an aggregate owned by the authenticated organizer.

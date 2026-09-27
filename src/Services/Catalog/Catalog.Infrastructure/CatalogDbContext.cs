@@ -1,5 +1,5 @@
-// Maps Catalog event and reservation aggregates to the service-owned SQL database.
-// Constraints provide a final integrity boundary beneath domain and application validation.
+// Maps Catalog events, row-version tokens, and reservations to the service-owned SQL database.
+// Constraints and concurrency metadata form the integrity boundary beneath application rules.
 using Catalog.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,6 +28,7 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
         eventItem.Property(x => x.Venue).HasMaxLength(200).IsRequired();
         eventItem.Property(x => x.City).HasMaxLength(100).IsRequired();
         eventItem.Property(x => x.Price).HasPrecision(10, 2);
+        eventItem.Property(x => x.RowVersion).IsRowVersion();
         eventItem.ToTable("Events", table =>
         {
             table.HasCheckConstraint("CK_Events_Price", "[Price] >= 0");

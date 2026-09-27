@@ -24,5 +24,13 @@ public sealed class UpdateEventCommandValidator : AbstractValidator<UpdateEventC
         RuleFor(x => x.Category).Must(Categories.IsKnown).WithMessage("Choose a known category.");
         RuleFor(x => x.Price).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Capacity).InclusiveBetween(1, 10000);
+        RuleFor(x => x.RowVersion).NotEmpty().Must(IsBase64RowVersion)
+            .WithMessage("RowVersion must be the base64 value returned by Catalog.");
+    }
+
+    private static bool IsBase64RowVersion(string value)
+    {
+        Span<byte> bytes = stackalloc byte[8];
+        return Convert.TryFromBase64String(value, bytes, out var written) && written == 8;
     }
 }

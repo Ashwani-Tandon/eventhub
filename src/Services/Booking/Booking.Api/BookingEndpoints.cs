@@ -18,10 +18,13 @@ public static class BookingEndpoints
     {
         // JSON body supplies purchase fields; ISender comes from DI; ASP.NET Core provides request cancellation.
         app.MapPost("/bookings", async (
-            [FromBody] CreateBookingCommand command,
+            [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+            [FromBody] CreateBookingInput input,
             [FromServices] ISender sender,
             CancellationToken cancellationToken) =>
         {
+            var command = new CreateBookingCommand(
+                input.EventId, input.Quantity, input.SimulatePaymentFailure, idempotencyKey);
             var result = await sender.Send(command, cancellationToken);
             var location = result.IsSuccess ? $"/booking/bookings/{result.Value.Id}" : "/booking/bookings";
             return result.ToCreatedHttpResult(location);
@@ -66,3 +69,9 @@ public static class BookingEndpoints
             .RequireAuthorization(AuthPolicies.Organizer);
     }
 }
+
+/// <summary>Client-supplied purchase fields; the optional idempotency identity comes only from its HTTP header.</summary>
+public sealed record CreateBookingInput(
+    int EventId,
+    int Quantity,
+    bool SimulatePaymentFailure = false);

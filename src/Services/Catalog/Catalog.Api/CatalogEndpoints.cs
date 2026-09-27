@@ -51,10 +51,10 @@ public static class CatalogEndpoints
                 : result.ToHttpResult();
         }).RequireAuthorization(AuthPolicies.Organizer);
 
-        app.MapPut("/events/{id:int}", async ([FromRoute] int id, [FromBody] EventInput input,
+        app.MapPut("/events/{id:int}", async ([FromRoute] int id, [FromBody] UpdateEventInput input,
             [FromServices] ISender sender, CancellationToken ct) =>
             (await sender.Send(new UpdateEventCommand(id, input.Title, input.Description, input.Category,
-                input.Venue, input.City, input.StartsAt, input.Price, input.Capacity), ct)).ToHttpResult())
+                input.Venue, input.City, input.StartsAt, input.Price, input.Capacity, input.RowVersion), ct)).ToHttpResult())
             .RequireAuthorization(AuthPolicies.Organizer);
 
         app.MapDelete("/events/{id:int}", async ([FromRoute] int id, [FromServices] ISender sender,
@@ -86,6 +86,18 @@ public sealed record EventInput(
     DateTimeOffset StartsAt,
     decimal Price,
     int Capacity);
+
+/// <summary>Editable event fields plus the version the organizer originally loaded.</summary>
+public sealed record UpdateEventInput(
+    string Title,
+    string Description,
+    string Category,
+    string Venue,
+    string City,
+    DateTimeOffset StartsAt,
+    decimal Price,
+    int Capacity,
+    string RowVersion);
 
 /// <summary>
 /// Booking's stable reservation identifier and requested ticket quantity; the user's identity comes from the validated JWT.

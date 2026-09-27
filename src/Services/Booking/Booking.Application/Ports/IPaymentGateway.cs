@@ -1,5 +1,5 @@
 // Isolates payment behavior from the purchase handler.
-// The demo implementation uses the reservation identity to return a stable outcome and reference.
+// The demo implementation uses the caller and idempotency key to return a stable outcome and reference.
 namespace Booking.Application.Ports;
 
 /// <summary>Payment acknowledgement; a declined payment has no reference.</summary>
@@ -12,7 +12,8 @@ public interface IPaymentGateway
 {
     /// <summary>Charges the amount once per request identity; development can explicitly demonstrate a decline.</summary>
     Task<PaymentResult> PayAsync(
-        Guid requestId,
+        Guid userId,
+        string requestKey,
         decimal amount,
         bool simulateFailure,
         CancellationToken cancellationToken);

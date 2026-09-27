@@ -12,5 +12,6 @@ public sealed class CreateBookingCommandValidator : AbstractValidator<CreateBook
     {
         RuleFor(x => x.EventId).GreaterThan(0);
         RuleFor(x => x.Quantity).InclusiveBetween(1, 10);
+        RuleFor(x => x.IdempotencyKey).MaximumLength(200);
     }
 }

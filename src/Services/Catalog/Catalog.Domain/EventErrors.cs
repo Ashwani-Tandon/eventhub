@@ -25,6 +25,10 @@ public static class EventErrors
         "Event.HasBookings",
         "An event with booked seats cannot be deleted.");
 
+    public static readonly Error ConcurrencyConflict = Error.Conflict(
+        "Event.ConcurrencyConflict",
+        "This event was changed by someone else — reload and try again.");
+
     public static readonly Error NotEnoughSeats = Error.Conflict(
         "Reservation.NotEnoughSeats",
         "Not enough seats are available.");

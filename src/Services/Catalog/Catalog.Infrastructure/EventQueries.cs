@@ -44,20 +44,23 @@ public sealed class EventQueries(CatalogDbContext db) : IEventQueries
         }
 
         var total = await query.CountAsync(cancellationToken);
-        var items = await Project(query.OrderBy(x => x.StartsAt)
+        var rows = await Project(query.OrderBy(x => x.StartsAt)
             .Skip((criteria.Page - 1) * criteria.PageSize).Take(criteria.PageSize))
             .ToListAsync(cancellationToken);
+        var items = rows.Select(ToDto).ToList();
         return new(items, total);
     }
 
     /// <summary>
     /// Projects a single event into a DTO without tracking its entity.
     /// </summary>
-    public Task<EventDto?> GetAsync(
+    public async Task<EventDto?> GetAsync(
         int id,
         CancellationToken cancellationToken)
     {
-        return Project(db.Events.AsNoTracking().Where(x => x.Id == id)).SingleOrDefaultAsync(cancellationToken);
+        var row = await Project(db.Events.AsNoTracking().Where(x => x.Id == id))
+            .SingleOrDefaultAsync(cancellationToken);
+        return row is null ? null : ToDto(row);
     }
 
     /// <summary>
@@ -74,15 +77,37 @@ public sealed class EventQueries(CatalogDbContext db) : IEventQueries
             query = query.Where(x => x.OrganizerId == userId);
         }
 
-        return await Project(query.OrderBy(x => x.StartsAt)).ToListAsync(cancellationToken);
+        var rows = await Project(query.OrderBy(x => x.StartsAt)).ToListAsync(cancellationToken);
+        return rows.Select(ToDto).ToList();
     }
 
     /// <summary>
     /// Maps database event columns directly into DTO fields, including calculated seats left.
     /// </summary>
-    private static IQueryable<EventDto> Project(IQueryable<Domain.Event> query)
+    private static IQueryable<EventReadModel> Project(IQueryable<Domain.Event> query)
     {
-        return query.Select(x => new EventDto(x.Id, x.Title, x.Description, x.Category, x.Venue, x.City,
-            x.StartsAt, x.Price, x.Capacity, x.SeatsBooked, x.Capacity - x.SeatsBooked, x.OrganizerId));
+        return query.Select(x => new EventReadModel(x.Id, x.Title, x.Description, x.Category, x.Venue, x.City,
+            x.StartsAt, x.Price, x.Capacity, x.SeatsBooked, x.OrganizerId, x.RowVersion));
     }
+
+    private static EventDto ToDto(EventReadModel row)
+    {
+        return new EventDto(row.Id, row.Title, row.Description, row.Category, row.Venue, row.City,
+            row.StartsAt, row.Price, row.Capacity, row.SeatsBooked, row.Capacity - row.SeatsBooked,
+            row.OrganizerId, Convert.ToBase64String(row.RowVersion));
+    }
+
+    private sealed record EventReadModel(
+        int Id,
+        string Title,
+        string Description,
+        string Category,
+        string Venue,
+        string City,
+        DateTimeOffset StartsAt,
+        decimal Price,
+        int Capacity,
+        int SeatsBooked,
+        Guid OrganizerId,
+        byte[] RowVersion);
 }

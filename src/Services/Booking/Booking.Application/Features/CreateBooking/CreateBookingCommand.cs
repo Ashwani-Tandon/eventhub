@@ -1,4 +1,4 @@
-// Carries a logged-in caller's purchase choices through the mediator.
+// Carries a logged-in caller's purchase choices and optional header identity through the mediator.
 // Ownership comes from ICurrentUser; no client-supplied user or organizer identity is accepted.
 using Booking.Application.Contracts;
 using EventHub.BuildingBlocks.Messaging;
@@ -9,4 +9,5 @@ namespace Booking.Application.Features.CreateBooking;
 public sealed record CreateBookingCommand(
     int EventId,
     int Quantity,
-    bool SimulatePaymentFailure = false) : ICommand<BookingDto>;
+    bool SimulatePaymentFailure = false,
+    string? IdempotencyKey = null) : ICommand<BookingDto>;

@@ -19,7 +19,8 @@ public sealed record EventDto(
     int Capacity,
     int SeatsBooked,
     int SeatsLeft,
-    Guid OrganizerId);
+    Guid OrganizerId,
+    string RowVersion);
 
 /// <summary>
 /// One page of matching events and the count before paging, so the UI can calculate how many pages exist.
@@ -70,7 +71,8 @@ public static class EventMappings
         return new(eventItem.Id, eventItem.Title,
         eventItem.Description, eventItem.Category, eventItem.Venue, eventItem.City,
         eventItem.StartsAt, eventItem.Price, eventItem.Capacity, eventItem.SeatsBooked,
-        eventItem.Capacity - eventItem.SeatsBooked, eventItem.OrganizerId);
+        eventItem.Capacity - eventItem.SeatsBooked, eventItem.OrganizerId,
+        Convert.ToBase64String(eventItem.RowVersion));
     }
 }
 
@@ -107,6 +109,7 @@ public sealed record ReleaseResult(
 public interface IEventRepository
 {
     Task<Event?> FindAsync(int id, CancellationToken cancellationToken);
+    Task<bool> SaveUpdateAsync(Event eventItem, byte[] originalRowVersion, CancellationToken cancellationToken);
     void Add(Event eventItem);
     void Remove(Event eventItem);
     Task<ReserveResult> TryReserveAsync(Guid reservationId, int eventId, Guid userId, int quantity,

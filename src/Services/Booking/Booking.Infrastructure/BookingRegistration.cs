@@ -18,6 +18,7 @@ public static class BookingRegistration
             options.UseSqlServer(sql => sql.CommandTimeout(15)));
         builder.Services.AddScoped<BookingRepository>();
         builder.Services.AddScoped<IBookingRepository>(services => services.GetRequiredService<BookingRepository>());
+        builder.Services.AddScoped<IBookingRequestRepository>(services => services.GetRequiredService<BookingRepository>());
         builder.Services.AddScoped<IUnitOfWork>(services => services.GetRequiredService<BookingRepository>());
         builder.Services.AddScoped<IBookingQueries, BookingQueries>();
         builder.Services.AddSingleton<IPaymentGateway, FakePaymentGateway>();
