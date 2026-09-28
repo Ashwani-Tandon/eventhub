@@ -1,0 +1,54 @@
+// The account form stays readable on phones and desktop screens.
+// Material owns input states; these styles provide spacing and hierarchy.
+:host {
+  display: block;
+}
+.auth-card {
+  max-width: 440px;
+  margin: 32px auto;
+  padding: 36px;
+  background: white;
+  border: 1px solid #e1e6e2;
+  border-radius: 20px;
+}
+h1 {
+  font-size: 34px;
+  line-height: 1.15;
+  margin: 12px 0;
+  letter-spacing: -1px;
+}
+.intro,
+.switch {
+  color: #52645c;
+  line-height: 1.6;
+}
+form {
+  display: grid;
+  gap: 10px;
+  margin-top: 28px;
+}
+mat-form-field {
+  width: 100%;
+}
+button {
+  min-height: 48px;
+}
+.error {
+  color: #a12b20;
+  background: #fff0ee;
+  padding: 12px;
+  border-radius: 8px;
+}
+.switch {
+  font-size: 14px;
+  margin-bottom: 0;
+}
+a {
+  color: #166348;
+}
+@media (max-width: 540px) {
+  .auth-card {
+    padding: 24px;
+    margin: 12px 0;
+  }
+}

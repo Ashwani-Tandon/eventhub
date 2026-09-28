@@ -1,0 +1,81 @@
+<!-- Public filters and cards use server facts for dates, prices, and availability.
+     Paging keeps the current filters while requesting a new Catalog page. -->
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">FIND YOUR NEXT EXPERIENCE</p>
+    <h1>Go out. Tune in. Be there.</h1>
+    <p>Discover events worth making time for.</p>
+  </div>
+  <span class="count-chip">{{ total() }} events</span>
+</section>
+<form [formGroup]="form" class="filter-panel" aria-label="Event filters">
+  <label class="search-field"
+    >Search events<input
+      formControlName="search"
+      placeholder="Music, meetups, workshops…"
+      type="search"
+  /></label>
+  <label
+    >Category<select formControlName="category">
+      <option value="">All categories</option>
+      @for (category of categories; track category) {
+        <option [value]="category">{{ category }}</option>
+      }
+    </select></label
+  >
+  <label>City<input formControlName="city" placeholder="Any city" /></label>
+  <label>From<input type="date" formControlName="from" /></label
+  ><label>Until<input type="date" formControlName="to" /></label>
+  <label
+    >Max price (₹)<input type="number" min="0" formControlName="maxPrice" placeholder="Any price"
+  /></label>
+  <button mat-button type="button" (click)="clear()">Clear filters</button>
+</form>
+@if (loading()) {
+  <p class="notice" role="status">Finding events…</p>
+} @else if (error()) {
+  <p class="notice error" role="alert">{{ error() }}</p>
+  <button mat-button (click)="load()">Try again</button>
+} @else if (!events().length) {
+  <section class="empty">
+    <h2>No matching events</h2>
+    <p>Try another city, date, or price range.</p>
+    <button mat-button (click)="clear()">Clear filters</button>
+  </section>
+} @else {
+  <div class="event-grid">
+    @for (event of events(); track event.id) {
+      <article class="event-card">
+        <a
+          [routerLink]="['/events', event.id]"
+          class="event-art"
+          [attr.data-category]="event.category"
+          ><span class="category-tag">{{ event.category }}</span
+          ><span class="art-letter" aria-hidden="true">{{ event.category.slice(0, 1) }}</span
+          ><span class="event-date">{{ event.startsAt | date: 'dd MMM' }}</span></a
+        >
+        <div class="card-body">
+          <p class="muted">{{ event.city }} · {{ event.startsAt | date: 'EEE, h:mm a' }}</p>
+          <h2>
+            <a [routerLink]="['/events', event.id]">{{ event.title }}</a>
+          </h2>
+          <p class="muted">{{ event.venue }}</p>
+          <div class="card-bottom">
+            <strong>{{ event.price | currency: 'INR' : 'symbol' : '1.0-2' }}</strong>
+            @if (event.seatsLeft === 0) {
+              <span class="badge cancelled">Sold out</span>
+            } @else {
+              <span class="availability">{{ event.seatsLeft }} seats left</span>
+            }
+          </div>
+          <a mat-button [routerLink]="['/events', event.id]">View details →</a>
+        </div>
+      </article>
+    }
+  </div>
+  <div class="pagination">
+    <button mat-stroked-button [disabled]="page() === 1" (click)="changePage(-1)">Previous</button
+    ><span>Page {{ page() }} of {{ pages() }}</span
+    ><button mat-stroked-button [disabled]="page() >= pages()" (click)="changePage(1)">Next</button>
+  </div>
+}

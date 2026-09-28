@@ -1,0 +1,24 @@
+<!-- The common header exposes only destinations available to the user's role.
+     The routed page replaces the content area without rebuilding the shell. -->
+<header>
+  <a class="brand" routerLink="/events"
+    ><span class="brand-mark">e</span>EventHub<span class="brand-dot">.</span></a
+  >
+  <div class="account">
+    @if (auth.currentUser(); as user) {
+      <span class="profile"
+        >{{ user.fullName }} <small>{{ user.role }}</small></span
+      ><button mat-button (click)="logout()">Sign out</button>
+    } @else {
+      <a mat-button routerLink="/login">Sign in</a
+      ><a mat-flat-button routerLink="/register">Create account</a>
+    }
+  </div>
+</header>
+<nav aria-label="Main navigation">
+  @for (item of menu(); track item.path) {
+    <a [routerLink]="item.path" routerLinkActive="active">{{ item.label }}</a>
+  }
+</nav>
+<main><router-outlet /></main>
+<footer>EventHub <span>Experiences worth showing up for.</span></footer>

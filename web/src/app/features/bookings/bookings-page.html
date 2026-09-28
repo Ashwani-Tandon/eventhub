@@ -1,0 +1,77 @@
+<!-- Booking history uses purchase snapshots and keeps cancelled records visible.
+     Retry seat return is offered when a saved cancellation still needs Catalog. -->
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">YOUR TICKETS</p>
+    <h1>My Bookings</h1>
+    <p>Plans to look forward to, and a record of where you've been.</p>
+  </div>
+  <button mat-stroked-button (click)="load()" [disabled]="loading()">Refresh</button>
+</section>
+@if (loading()) {
+  <p class="notice" role="status">Loading bookings…</p>
+} @else if (error()) {
+  <p class="notice error" role="alert">{{ error() }}</p>
+} @else if (!bookings().length) {
+  <section class="empty">
+    <h2>Your next experience starts here.</h2>
+    <p>You haven't booked any tickets yet.</p>
+    <a mat-flat-button routerLink="/events">Explore events</a>
+  </section>
+} @else {
+  <div class="table-wrap">
+    <table>
+      <caption class="sr-only">
+        Your bookings
+      </caption>
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th>When</th>
+          <th>Tickets</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (booking of bookings(); track booking.id) {
+          <tr>
+            <td>
+              <a [routerLink]="['/events', booking.eventId]">{{ booking.eventTitle }}</a
+              ><small
+                >#{{ booking.id }} · booked {{ booking.createdAt | date: 'd MMM yyyy' }}</small
+              >
+            </td>
+            <td>{{ booking.eventStartsAt | date: 'd MMM yyyy, h:mm a' }}</td>
+            <td>{{ booking.quantity }}</td>
+            <td>{{ booking.total | currency: 'INR' }}</td>
+            <td>
+              <span class="badge" [class.cancelled]="booking.status === 'Cancelled'">{{
+                booking.status
+              }}</span>
+              @if (booking.seatReleasePending) {
+                <small class="error">Seat return pending</small>
+              }
+            </td>
+            <td>
+              @if (canCancel(booking)) {
+                <button mat-button (click)="cancel(booking)" [disabled]="cancelling() !== null">
+                  {{
+                    cancelling() === booking.id
+                      ? 'Cancelling…'
+                      : booking.seatReleasePending
+                        ? 'Retry seat return'
+                        : 'Cancel'
+                  }}
+                </button>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

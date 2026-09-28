@@ -1,0 +1,88 @@
+<!-- Editable fields mirror Catalog validation and display mistakes beside their inputs.
+     Reload is an explicit choice after a stale-version conflict so edits are not silently lost. -->
+<a routerLink="/my-events" class="back-link">← My Events</a>
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">BUILD YOUR NEXT EXPERIENCE</p>
+    <h1>{{ id ? 'Edit event' : 'Create event' }}</h1>
+    <p>Set the details. Bring people together.</p>
+  </div>
+</section>
+@if (loading()) {
+  <p class="notice" role="status">Loading event…</p>
+} @else {
+  <form [formGroup]="form" (ngSubmit)="save()" class="editor-panel">
+    <label class="full"
+      >Event title<input
+        formControlName="title"
+        maxlength="120"
+        placeholder="Give your event a memorable name"
+      />
+      @if (invalid('title')) {
+        <span class="field-error">A title is required (up to 120 characters).</span>
+      }
+    </label>
+    <label class="full"
+      >Description<textarea
+        formControlName="description"
+        rows="5"
+        maxlength="2000"
+        placeholder="What should people look forward to?"
+      ></textarea>
+      @if (invalid('description')) {
+        <span class="field-error">Use up to 2000 characters.</span>
+      }
+    </label>
+    <label
+      >Category<select formControlName="category">
+        @for (category of categories; track category) {
+          <option [value]="category">{{ category }}</option>
+        }
+      </select></label
+    >
+    <label
+      >Start date and time<input type="datetime-local" formControlName="startsAt" />
+      @if (invalid('startsAt')) {
+        <span class="field-error">Choose a future date; an existing date may stay unchanged.</span>
+      }
+    </label>
+    <label>Venue<input formControlName="venue" placeholder="Venue name" /></label
+    ><label>City<input formControlName="city" placeholder="City" /></label>
+    <label
+      >Ticket price (₹)<input type="number" formControlName="price" min="0" step="0.01" />
+      @if (invalid('price')) {
+        <span class="field-error">Price must be zero or greater.</span>
+      }
+    </label>
+    <label
+      >Capacity<input
+        type="number"
+        formControlName="capacity"
+        [min]="minimumCapacity()"
+        max="10000"
+        step="1"
+      />
+      @if (invalid('capacity')) {
+        <span class="field-error"
+          >Use a whole number between {{ minimumCapacity() }} and 10000.</span
+        >
+      }
+    </label>
+    @if (error()) {
+      <p class="notice error full" role="alert">{{ error() }}</p>
+    }
+    @if (conflict()) {
+      <div class="full">
+        <button mat-stroked-button type="button" (click)="load()">Reload latest event</button>
+        <p class="muted small">
+          Reload discards your unsaved changes. Review the latest details before saving again.
+        </p>
+      </div>
+    }
+    <div class="full actions">
+      <button mat-flat-button type="submit" [disabled]="pending() || conflict()">
+        {{ pending() ? 'Saving…' : id ? 'Save changes' : 'Create event' }}</button
+      ><a mat-button routerLink="/my-events">Back to My Events</a>
+    </div>
+  </form>
+}

@@ -15,11 +15,12 @@ Catalog's internal seat APIs are service-to-service operations, not gateway APIs
 
 ## Common infrastructure
 
-| Reference                                        | Purpose                                                                               |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| [Project structure](common/PROJECT_STRUCTURE.md) | Repository map, all service projects, and layer responsibilities                      |
-| [Gateway](common/GATEWAY.md)                     | Public routing, prefix transforms, and security boundaries                            |
-| [BuildingBlocks](common/BUILDING_BLOCKS.md)      | Mediator, CQRS, pipeline behaviors, Result errors, and caller contracts               |
-| [Aspire / ServiceDefaults](common/ASPIRE.md)     | Startup resources, dependencies, configuration, health, telemetry, and authentication |
+| Reference                                             | Purpose                                                                               |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [Project structure](common/PROJECT_STRUCTURE.md)      | Repository map, all service projects, and layer responsibilities                      |
+| [Angular shell and authentication](common/ANGULAR.md) | Browser session, forms, role menus, guards, and local proxy                           |
+| [Gateway](common/GATEWAY.md)                          | Public routing, prefix transforms, and security boundaries                            |
+| [BuildingBlocks](common/BUILDING_BLOCKS.md)           | Mediator, CQRS, pipeline behaviors, Result errors, and caller contracts               |
+| [Aspire / ServiceDefaults](common/ASPIRE.md)          | Startup resources, dependencies, configuration, health, telemetry, and authentication |
 
 These references describe implemented behavior and explicitly label future work.

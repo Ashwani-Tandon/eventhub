@@ -1,0 +1,41 @@
+<!-- The public detail view retains Catalog's availability and full event description.
+     Its purchase action is disabled for sold-out or already-started events. -->
+<a routerLink="/events" class="back-link">← All events</a>
+@if (loading()) {
+  <p class="notice" role="status">Loading event…</p>
+} @else if (error()) {
+  <p class="notice error" role="alert">{{ error() }}</p>
+  <button mat-button (click)="load()">Try again</button>
+} @else if (event(); as event) {
+  <div class="details-grid">
+    <section>
+      <div class="detail-art event-art" [attr.data-category]="event.category">
+        <span class="category-tag">{{ event.category }}</span
+        ><span class="art-letter" aria-hidden="true">{{ event.category.slice(0, 1) }}</span>
+      </div>
+      <p class="eyebrow">{{ event.category }} · {{ event.city }}</p>
+      <h1>{{ event.title }}</h1>
+      <p class="description">{{ event.description || 'Join us for this event.' }}</p>
+    </section>
+    <aside class="ticket-panel">
+      <p class="eyebrow">YOUR NEXT PLAN</p>
+      <h2>{{ event.startsAt | date: 'EEEE, d MMMM' }}</h2>
+      <p>{{ event.startsAt | date: 'h:mm a' }} · local time</p>
+      <hr />
+      <h3>{{ event.venue }}</h3>
+      <p>{{ event.city }}</p>
+      <hr />
+      <p class="price">{{ event.price | currency: 'INR' }}</p>
+      <p>per ticket</p>
+      @if (event.seatsLeft === 0) {
+        <p class="badge cancelled">Sold out</p>
+      } @else {
+        <p>{{ event.seatsLeft }} seats left of {{ event.capacity }}</p>
+      }
+      <button mat-flat-button [disabled]="event.seatsLeft === 0 || started()" (click)="book()">
+        {{ started() ? 'Event has started' : event.seatsLeft === 0 ? 'Sold out' : 'Book tickets' }}
+      </button>
+      <p class="muted small">Payments are simulated in this learning project.</p>
+    </aside>
+  </div>
+}

@@ -1,0 +1,99 @@
+// This responsive shell gives all routes a consistent identity and navigation.
+// Wrapping menus keep every allowed destination reachable on narrow screens.
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 6%;
+  background: white;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  text-decoration: none;
+  color: #203c30;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: #166348;
+  color: white;
+  border-radius: 11px;
+  margin-right: 10px;
+}
+.brand-dot {
+  color: #b5c765;
+}
+.account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.profile {
+  font-size: 14px;
+}
+small {
+  display: block;
+  color: #64756b;
+  margin-top: 4px;
+}
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 6% 16px;
+  background: white;
+  border-bottom: 1px solid #e1e6e2;
+}
+nav a {
+  padding: 9px 15px;
+  text-decoration: none;
+  color: #53645b;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+nav a.active {
+  background: #e9f1e8;
+  color: #166348;
+}
+main {
+  min-height: 65vh;
+  max-width: 1120px;
+  margin: auto;
+  padding: 36px 24px;
+}
+footer {
+  padding: 24px 6%;
+  border-top: 1px solid #e1e6e2;
+  color: #64756b;
+  font-size: 13px;
+}
+footer span {
+  margin-left: 20px;
+}
+@media (max-width: 600px) {
+  header {
+    align-items: flex-start;
+    padding: 20px;
+  }
+  .account {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .profile {
+    text-align: right;
+  }
+  nav {
+    padding: 0 12px 12px;
+  }
+  main {
+    padding: 20px;
+  }
+}

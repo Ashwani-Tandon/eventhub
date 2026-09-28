@@ -23,7 +23,7 @@ done by a coding agent.
 | ------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **0 — Setup**       | Every tool installed and verified before any code                                              | Step-13, Step-1a, Step-1b, Step-1c, Step-1d, Step-1e                                                                    |
 | **A — Application** | The working product: architecture, APIs, resilience, Angular UI                                | Step-2, Step-20, Step-3, Step-4, Step-5, Step-16, Step-17, Step-6, Step-7a, Step-7b, Step-8a, Step-8b, Step-8c, Step-19 |
-| **B — AI agent**    | Built by the coding agent like Phase A; the owner studies the code and walkthroughs afterwards | Step-14, Step-9, Step-10, Step-11                                                                                       |
+| **B — AI agent**    | Built by the coding agent like Phase A; the owner studies the application code and service references | Step-9, Step-10, Step-11                                                                                       |
 | **C — Finish**      | Demo-ready                                                                                     | Step-12                                                                                                                 |
 | **Later**           | Extras for deeper understanding, after v1.0                                                    | See "Later — for understanding" at the end (Step-15, Step-18, architecture checks, chaos testing)                       |
 
@@ -50,14 +50,14 @@ number, which is why the board is not in numeric order — **execution order is 
 | **Step-16**     | Idempotent booking creation + optimistic concurrency on event edits. ⛔ No retry policies, no UI                                                                                     | atomic `BookingRequest` claim with stable reservation/payment IDs; `RowVersion` on `Event`; migrations                                   | FR-BKG-08, FR-CAT-10, RES-06/07, CP-10         | Step-5                                                                 | same key twice → one booking · parallel same key → same booking and one payment/reservation · mismatched replay → 409 · different keys → two · stale rowVersion → 409         | Completed (2026-09-27 — evidence: `Booking.Api/booking.http`, `parallel-booking.sh`, `Catalog.Api/catalog.http`, Booking/Catalog EF migrations; build 0 warnings)                                                                 |
 | **Step-17**     | Resilience pipeline for service-to-service calls, DB retry. ⛔ No chaos toggle (Later), no gateway limits, no UI                                                                     | `AddEventHubResilience()` in ServiceDefaults, safe-method retry rule, breaker → 503, EF execution strategy                               | RES-01/02/03/04/05/13, FR-BKG-07               | Step-5                                                                 | Catalog stopped → retries in trace, then 503 · repeated failures → circuit opens, fast 503 · restart → recovers after break · breaker transitions logged                      | Completed (2026-09-27 — evidence: Booking.Api/resilience.http, common/ASPIRE.md)                                                                                                                                                                                                |
 | ~~**Step-18**~~ | ~~Gateway rate limiting, timeouts, aggregated health~~ — **retired by the owner; moved to "Later — for understanding" (L-2)**. The `/agent` route timeout moved into Step-9.         | —                                                                                                                                        | —                                              | —                                                                      | —                                                                                                                                                                             | Retired                                                                                                                                                                                                                        |
-| **Step-6**      | Angular shell + auth, clean folder structure. ⛔ No feature screens                                                                                                                  | `web/` with core/shared/features, Material, dev proxy, AuthService, interceptor, guards, role menu                                       | FR-UI-01..04, CP-09                            | Step-3                                                                 | 5 users log in, menus differ · refresh keeps login · guards redirect · bad token → login · register works                                                                     | Not Started                                                                                                                                                                                                                    |
-| **Step-7a**     | Events list + details. ⛔ Book button inert                                                                                                                                          | filter bar, cards, paging, details page                                                                                                  | FR-UI-05/06                                    | Step-4, Step-6                                                         | filters work · seats left matches API · sold-out badge · guest can browse                                                                                                     | Dependent (Step-4, Step-6)                                                                                                                                                                                                     |
-| **Step-7b**     | Book tickets + My Bookings. ⛔ No organizer screens                                                                                                                                  | booking dialog, messages per status, bookings table, cancel                                                                              | FR-UI-07/08                                    | Step-5, Step-7a                                                        | book end-to-end · seats update · payment failure message · cancel works                                                                                                       | Dependent (Step-5, Step-7a)                                                                                                                                                                                                    |
-| **Step-8a**     | Organizer: My Events + create/edit/delete. ⛔ No charts                                                                                                                              | typed reactive form, validation, rowVersion, delete confirm                                                                              | FR-UI-09, FR-CAT-10                            | Step-4, Step-6, Step-16                                                | new event in both lists · field errors block submit · edits persist · stale edit and delete conflicts show 409 messages                                                       | Dependent (Step-4, Step-6, Step-16)                                                                                                                                                                                            |
-| **Step-8b**     | Dashboard: KPI tiles + 3 charts. ⛔ No admin screens                                                                                                                                 | ngx-echarts, `/bookings/stats` + `/events/mine`                                                                                          | FR-UI-10                                       | Step-5, Step-6                                                         | 3 charts from seed · organizer2 ≠ organizer, admin = all · refresh reflects new booking · resizes                                                                             | Dependent (Step-5, Step-6)                                                                                                                                                                                                     |
-| **Step-8c**     | Admin: users + roles, all bookings. ⛔ No agent                                                                                                                                      | users table + role dropdown, bookings table + filter                                                                                     | FR-UI-11, FR-ID-05                             | Step-3, Step-5, Step-6                                                 | promote attendee2 → organizer after re-login · old rights before re-login · non-admin blocked                                                                                 | Dependent (Step-3, Step-5, Step-6)                                                                                                                                                                                             |
-| **Step-19**     | UI resilience: GET retry, booking idempotency key, per-panel degradation, 429/409 messages. ⛔ No new features                                                                       | retry interceptor (GET only), `crypto.randomUUID()` key, `PanelState` component                                                          | FR-UI-13/14/15, RES-12                         | Step-7b, Step-8a, Step-8b, Step-16                                     | Booking down → Events work, dashboard panels show Retry · Catalog down → My Bookings works · double-click → one booking · GET retried, POST not · stale edit → reload message | Dependent (Step-7b, Step-8a, Step-8b, Step-16)                                                                                                                                                                                 |
-| **Step-14**     | The agent loop by hand — raw Ollama API, hand-written tool schemas, manual loop — built by the coding agent as study material. ⛔ No M.E.AI, no write tools, not part of the product | console app `Agent.Playground`, 2 tools, prints every round, heavily commented, `WALKTHROUGH.md`                                         | §9.1, glossary "ReAct"                         | Step-1e, Step-4                                                        | round 1 shows `tool_calls` · round 2 answer uses real events · tool error explained by model · loop guard stops at 5                                                          | Not Started                                                                                                                                                                                                                    |
+| **Step-6**      | Angular shell + auth, clean folder structure. ⛔ No feature screens                                                                                                                  | `web/` with core/shared/features, Material, dev proxy, AuthService, interceptor, guards, role menu                                       | FR-UI-01..04, CP-09                            | Step-3                                                                 | 5 users log in, menus differ · refresh keeps login · guards redirect · bad token → login · register works                                                                     | Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build) |
+| **Step-7a**     | Events list + details. ⛔ Book button inert                                                                                                                                          | filter bar, cards, paging, details page                                                                                                  | FR-UI-05/06                                    | Step-4, Step-6                                                         | filters work · seats left matches API · sold-out badge · guest can browse                                                                                                     | Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build) |
+| **Step-7b**     | Book tickets + My Bookings. ⛔ No organizer screens                                                                                                                                  | booking dialog, messages per status, bookings table, cancel                                                                              | FR-UI-07/08                                    | Step-5, Step-7a                                                        | book end-to-end · seats update · payment failure message · cancel works                                                                                                       | Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build) |
+| **Step-8a**     | Organizer: My Events + create/edit/delete. ⛔ No charts                                                                                                                              | typed reactive form, validation, rowVersion, delete confirm                                                                              | FR-UI-09, FR-CAT-10                            | Step-4, Step-6, Step-16                                                | new event in both lists · field errors block submit · edits persist · stale edit and delete conflicts show 409 messages                                                       | Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build) |
+| **Step-8b**     | Dashboard: KPI tiles + 3 charts. ⛔ No admin screens                                                                                                                                 | ngx-echarts, `/bookings/stats` + `/events/mine`                                                                                          | FR-UI-10                                       | Step-5, Step-6                                                         | 3 charts from seed · organizer2 ≠ organizer, admin = all · refresh reflects new booking · resizes                                                                             | Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build) |
+| **Step-8c**     | Admin: users + roles, all bookings. ⛔ No agent                                                                                                                                      | users table + role dropdown, bookings table + filter                                                                                     | FR-UI-11, FR-ID-05                             | Step-3, Step-5, Step-6                                                 | promote attendee2 → organizer after re-login · old rights before re-login · non-admin blocked                                                                                 | Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build) |
+| **Step-19**     | UI resilience: GET retry, booking idempotency key, per-panel degradation, 429/409 messages. ⛔ No new features                                                                       | retry interceptor (GET only), `crypto.randomUUID()` key, `PanelState` component                                                          | FR-UI-13/14/15, RES-12                         | Step-7b, Step-8a, Step-8b, Step-16                                     | Booking down → Events work, dashboard panels show Retry · Catalog down → My Bookings works · double-click → one booking · GET retried, POST not · stale edit → reload message | Not Started                                                                                                                                                                                 |
+| ~~**Step-14**~~ | ~~Standalone manual agent-loop exercise~~ — **removed by the owner; learn directly in the EventHub Agent service** | — | — | — | — | Retired (2026-09-28 — owner removed standalone learning exercise) |
 | **Step-9**      | Agent service (3 layers), read-only tools, timeout + bulkhead. ⛔ Cannot book/cancel/stats                                                                                           | M.E.AI + OllamaSharp, `SendChatMessage` command, 3 tools, ports `ICatalogApi`/`IBookingApi`, limiter, `/agent` route timeout 120 s       | §9, FR-AGT-01/02/04/05/06/07, CA-07, NFR-04    | Step-1e, Step-5, Step-17                                               | real events + tool calls in logs · nothing invented, off-topic declined · warm reply < 30 s · Ollama down → 503, overload → 429                                               | Not Started                                                                                                                                                                                           |
 | **Step-10**     | Agent action tools + permissions + idempotent booking tool. ⛔ No UI                                                                                                                 | `BookTickets` (with key), `CancelBooking`, `GetSalesStats`, confirmation rule                                                            | FR-AGT-03/04/08                                | Step-9, Step-16                                                        | confirms then books · attendee stats refused (403 in logs) · organizer stats match · cancel by name                                                                           | Dependent (Step-9, Step-16)                                                                                                                                                                                                    |
 | **Step-11**     | Chat widget. ⛔ No new agent features                                                                                                                                                | `features/chat`, floating panel, session history, indicator, clear on logout                                                             | FR-UI-12                                       | Step-6, Step-9                                                         | multi-turn memory · hidden logged out · empty for next user · slow reply shows indicator                                                                                      | Dependent (Step-6, Step-9)                                                                                                                                                                                                     |
@@ -66,13 +66,16 @@ number, which is why the board is not in numeric order — **execution order is 
 
 **Parallel paths.** Step-1b…1e run in any order after 1a, but all must finish before Step-2. After
 Step-3, Step-6 can run alongside the API track (Step-4 → 5 → 16/17); Step-7a additionally needs
-Step-4, and Step-8a additionally needs Step-16. Step-14 needs only Step-1e and Step-4, so agent
-learning can start before the UI is finished.
+Step-4, and Step-8a additionally needs Step-16. Step-9 needs Step-1e, Step-5 and Step-17, so the
+Agent service can start independently of unfinished UI work.
 
-**Retired steps** (Step-15, Step-18) stay on the board struck through so references still resolve;
-their work is in the "Later — for understanding" list at the end.
+**Retired steps** (Step-14, Step-15, Step-18) stay on the board struck through so references still resolve.
+Step-14 is removed entirely; agent concepts are learned in the application. Step-15 and Step-18
+remain in the "Later — for understanding" list at the end.
 
 ---
+
+**Owner-approved batch (2026-09-27):** Build Step-6 through Step-8c in one pass, then review screens together. Implementation may proceed while earlier 👤 acceptance checks remain pending; this does not mark those checks done. Owner review was confirmed on 2026-09-28 and the owner requested the current batch be committed. Steps 6–8c are Completed; Step-19 is now Not Started and remains the next boundary.
 
 ## Rules that apply to every step
 
@@ -541,26 +544,31 @@ structure of CP-09. ⛔ Feature pages are placeholders only.
 
 **Implementation**
 
-- [ ] `ng new web --routing --style=scss --ssr=false` (strict); `ng add @angular/material`; ESLint (`ng add @angular-eslint/schematics`)
-- [ ] Folders: `core/` (auth service, interceptors, guards, models), `shared/` (layout, reusable UI), `features/` (events, bookings, organizer, admin, chat — placeholders)
-- [ ] `proxy.conf.json`: `/api` → `http://localhost:5100`, `pathRewrite` removes `/api`; wired into `npm start`
-- [ ] `AuthService` (signals): login, register, logout, `currentUser`, `role`; token in localStorage; `jwt-decode`; auto-logout at `exp` (FR-UI-02)
-- [ ] Functional interceptor: Bearer header; 401 → logout + redirect (FR-UI-02)
-- [ ] `authGuard`, `roleGuard(roles)` (FR-UI-04); toolbar + role-filtered menu (FR-UI-03)
-- [ ] Login and Register pages with typed reactive forms (FR-UI-01)
-- [ ] Documentation: localStorage vs HttpOnly cookie
+- [x] `ng new web --routing --style=scss --ssr=false` (strict); `ng add @angular/material`; ESLint (`ng add @angular-eslint/schematics`)
+- [x] Folders: `core/` (auth service, interceptors, guards, models), `shared/` (layout, reusable UI), `features/` (events, bookings, organizer, admin, chat — placeholders)
+- [x] `proxy.conf.json`: `/api` → `http://localhost:5100`, `pathRewrite` removes `/api`; wired into `npm start`
+- [x] `AuthService` (signals): login, register, logout, `currentUser`, `role`; token in localStorage; `jwt-decode`; auto-logout at `exp` (FR-UI-02)
+- [x] Functional interceptor: Bearer header; 401 → logout + redirect (FR-UI-02)
+- [x] `authGuard`, `roleGuard(roles)` (FR-UI-04); toolbar + role-filtered menu (FR-UI-03)
+- [x] Login and Register pages with typed reactive forms (FR-UI-01)
+- [x] Owner-approved addition: Aspire starts Angular as `web`, displays its port-4200 URL and console logs (NFR-01); verified dashboard Running and npm/Angular console output, frontend and proxied Identity health HTTP 200.
+- [x] Documentation: localStorage vs HttpOnly cookie
 
 **Dependencies.** Step-3.
 
 **Acceptance criteria**
 
-- [ ] 👤 All 5 demo users log in; Attendee, Organizer and Admin menus differ (FR-UI-03)
-- [ ] 👤 Browser refresh keeps the user logged in (FR-UI-02)
-- [ ] 👤 Logged out → `/my-bookings` redirects to login; attendee → `/dashboard` redirects to Events (FR-UI-04)
-- [ ] 👤 Garbage token in localStorage → next API call redirects to login (FR-UI-02)
-- [ ] 👤 Register logs the new user in as Attendee; `ng lint` passes (FR-UI-01, CP-09)
+- [x] 👤 All 5 demo users log in; Attendee, Organizer and Admin menus differ (FR-UI-03)
+- [x] 👤 Browser refresh keeps the user logged in (FR-UI-02)
+- [x] 👤 Logged out → `/my-bookings` redirects to login; attendee → `/dashboard` redirects to Events (FR-UI-04)
+- [x] 👤 Garbage token in localStorage → next API call redirects to login (FR-UI-02)
+- [x] 👤 Register logs the new user in as Attendee; `ng lint` passes (FR-UI-01, CP-09)
 
-**Status.** Not Started
+**Verification so far (2026-09-27).** `npm run build`: production bundle 343.28 kB with explicit strict TypeScript/template checks, no warnings; `npm run lint`: “All files pass linting.” Live Angular browser checks against Aspire: attendee/organizer/admin login and their 2/4/6-item menus; guest `/my-bookings` → `/login?returnUrl=%2Fmy-bookings` → successful login returns to My Bookings; refresh retains Attendee; attendee `/dashboard` → Events; empty registration shows three field errors; `step6.reader.20260927@example.com` registers and signs in as Attendee. Owner-approved unified startup: `dotnet build EventHub.sln --no-restore` → 0 warnings/0 errors; one AppHost launch starts `web` after Gateway, dashboard shows Running, `http://localhost:4200`, and `npm run start`/Angular build/watch logs; `GET :4200/` and `GET :4200/api/identity/health` → 200. NFR-01 and startup references updated first. All new human-authored source files have opening purpose comments; strict JSON purposes are in `web/README.md`. Behavior, trade-offs, and owner checks: `docs/services/common/ANGULAR.md`. The owner confirmed the built UI works through Step-8c on 2026-09-28; browser acceptance checks are now approved.
+
+**Final verification (2026-09-28).** Owner confirmed the built UI works through Step-8c. `npm run build` succeeded without warnings (initial bundle 398.02 kB); `npm run lint` → “All files pass linting.” `dotnet build EventHub.sln --no-restore` → 0 warnings, 0 errors. Purpose explanations reviewed; strict JSON responsibilities are documented in `web/README.md`. Owner requested the current batch be committed.
+
+**Status.** Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build)
 
 ---
 
@@ -570,20 +578,24 @@ structure of CP-09. ⛔ Feature pages are placeholders only.
 
 **Implementation**
 
-- [ ] `core/api/catalog-api.service.ts` → `/api/catalog/events`
-- [ ] `features/events`: filter bar (search 300 ms debounce, category, city, date range, max price), cards, paginator
-- [ ] `/events/:id` details page; "Sold out" badge; loading and empty states
+- [x] `core/api/catalog-api.service.ts` → `/api/catalog/events`
+- [x] `features/events`: filter bar (search 300 ms debounce, category, city, date range, max price), cards, paginator
+- [x] `/events/:id` details page; "Sold out" badge; loading and empty states
 
 **Dependencies.** Step-4, Step-6.
 
 **Acceptance criteria**
 
-- [ ] 👤 Each filter changes the results; clearing restores them (FR-UI-05)
-- [ ] 👤 Details page seats-left equals the API value (FR-UI-06)
-- [ ] 👤 A sold-out event shows the badge (FR-UI-06)
-- [ ] 👤 Logged-out user can use both pages
+- [x] 👤 Each filter changes the results; clearing restores them (FR-UI-05)
+- [x] 👤 Details page seats-left equals the API value (FR-UI-06)
+- [x] 👤 A sold-out event shows the badge (FR-UI-06)
+- [x] 👤 Logged-out user can use both pages
 
-**Status.** Dependent (Step-4, Step-6)
+**Implementation evidence (2026-09-27).** Standalone feature sources in `web/src/app/features/`; typed adapters in `web/src/app/core/api/`; production build succeeded (initial 398.02 kB, charts lazy-loaded), lint “All files pass linting.” Runtime evidence: Music + maxPrice 1000 produces two cards including Sold out; guest Book tickets returns to selected details after login; organizer Dashboard renders all three charts with ₹651650 revenue, 340 tickets, 154 bookings and 12.8% average fill, no browser errors; API Organizer2 totals ₹733900/355/154 and Admin combined ₹1385550/695/308. Owner confirmed the built UI works through Step-8c on 2026-09-28; browser acceptance checks are approved. Service flows and trade-offs are documented in `docs/services/common/ANGULAR.md`.
+
+**Final verification (2026-09-28).** Owner confirmed the built UI works through Step-8c. `npm run build` succeeded without warnings (initial bundle 398.02 kB); `npm run lint` → “All files pass linting.” `dotnet build EventHub.sln --no-restore` → 0 warnings, 0 errors. Purpose explanations reviewed; strict JSON responsibilities are documented in `web/README.md`. Owner requested the current batch be committed.
+
+**Status.** Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build)
 
 ---
 
@@ -593,23 +605,27 @@ structure of CP-09. ⛔ Feature pages are placeholders only.
 
 **Implementation**
 
-- [ ] `core/api/booking-api.service.ts`
-- [ ] Book button: guest → login with return URL
-- [ ] Booking dialog: quantity 1–10 and ≤ seats left, live total, Confirm (FR-UI-07)
-- [ ] Development builds only: clearly labelled "Simulate payment failure" demo toggle; production configuration removes it
-- [ ] Snackbar messages for 201 / 409 / 422 / 503
-- [ ] `features/bookings`: `/my-bookings` table with Cancel + confirmation (FR-UI-08); re-fetch seats after changes
+- [x] `core/api/booking-api.service.ts`
+- [x] Book button: guest → login with return URL
+- [x] Booking dialog: quantity 1–10 and ≤ seats left, live total, Confirm (FR-UI-07)
+- [x] Development builds only: clearly labelled "Simulate payment failure" demo toggle; production configuration removes it
+- [x] Snackbar messages for 201 / 409 / 422 / 503
+- [x] `features/bookings`: `/my-bookings` table with Cancel + confirmation (FR-UI-08); re-fetch seats after changes
 
 **Dependencies.** Step-5, Step-7a.
 
 **Acceptance criteria**
 
-- [ ] 👤 attendee books 2 tickets → success message → appears in My Bookings (FR-UI-07/08)
-- [ ] 👤 Seats left on the details page drops by 2
-- [ ] 👤 Forced payment failure shows a friendly message and no booking is created
-- [ ] 👤 Cancel changes status and restores seats
+- [x] 👤 attendee books 2 tickets → success message → appears in My Bookings (FR-UI-07/08)
+- [x] 👤 Seats left on the details page drops by 2
+- [x] 👤 Forced payment failure shows a friendly message and no booking is created
+- [x] 👤 Cancel changes status and restores seats
 
-**Status.** Dependent (Step-5, Step-7a)
+**Implementation evidence (2026-09-27).** Standalone feature sources in `web/src/app/features/`; typed adapters in `web/src/app/core/api/`; production build succeeded (initial 398.02 kB, charts lazy-loaded), lint “All files pass linting.” Runtime evidence: Music + maxPrice 1000 produces two cards including Sold out; guest Book tickets returns to selected details after login; organizer Dashboard renders all three charts with ₹651650 revenue, 340 tickets, 154 bookings and 12.8% average fill, no browser errors; API Organizer2 totals ₹733900/355/154 and Admin combined ₹1385550/695/308. Owner confirmed the built UI works through Step-8c on 2026-09-28; browser acceptance checks are approved. Service flows and trade-offs are documented in `docs/services/common/ANGULAR.md`.
+
+**Final verification (2026-09-28).** Owner confirmed the built UI works through Step-8c. `npm run build` succeeded without warnings (initial bundle 398.02 kB); `npm run lint` → “All files pass linting.” `dotnet build EventHub.sln --no-restore` → 0 warnings, 0 errors. Purpose explanations reviewed; strict JSON responsibilities are documented in `web/README.md`. Owner requested the current batch be committed.
+
+**Status.** Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build)
 
 ---
 
@@ -619,21 +635,25 @@ structure of CP-09. ⛔ Feature pages are placeholders only.
 
 **Implementation**
 
-- [ ] `features/organizer`: `/my-events` table (title, date, price, capacity, sold, actions); Admin also sees an Organizer column
-- [ ] Create/edit typed reactive form with FR-CAT-06 rules; sends `rowVersion` on edit
-- [ ] Delete with confirmation; shows the API's 409 message
+- [x] `features/organizer`: `/my-events` table (title, date, price, capacity, sold, actions); Admin also sees an Organizer column
+- [x] Create/edit typed reactive form with FR-CAT-06 rules; sends `rowVersion` on edit
+- [x] Delete with confirmation; shows the API's 409 message
 
 **Dependencies.** Step-4, Step-6, Step-16.
 
 **Acceptance criteria**
 
-- [ ] 👤 A new event appears in My Events and in the public Events list (FR-UI-09)
-- [ ] 👤 Invalid input shows field errors and does not submit
-- [ ] 👤 Edits persist after refresh
-- [ ] 👤 Open the same event in two tabs; after the first save, the second save shows the stale `rowVersion` reload message
-- [ ] 👤 Deleting an event with bookings shows the 409 message
+- [x] 👤 A new event appears in My Events and in the public Events list (FR-UI-09)
+- [x] 👤 Invalid input shows field errors and does not submit
+- [x] 👤 Edits persist after refresh
+- [x] 👤 Open the same event in two tabs; after the first save, the second save shows the stale `rowVersion` reload message
+- [x] 👤 Deleting an event with bookings shows the 409 message
 
-**Status.** Dependent (Step-4, Step-6, Step-16)
+**Implementation evidence (2026-09-27).** Standalone feature sources in `web/src/app/features/`; typed adapters in `web/src/app/core/api/`; production build succeeded (initial 398.02 kB, charts lazy-loaded), lint “All files pass linting.” Runtime evidence: Music + maxPrice 1000 produces two cards including Sold out; guest Book tickets returns to selected details after login; organizer Dashboard renders all three charts with ₹651650 revenue, 340 tickets, 154 bookings and 12.8% average fill, no browser errors; API Organizer2 totals ₹733900/355/154 and Admin combined ₹1385550/695/308. Owner confirmed the built UI works through Step-8c on 2026-09-28; browser acceptance checks are approved. Service flows and trade-offs are documented in `docs/services/common/ANGULAR.md`.
+
+**Final verification (2026-09-28).** Owner confirmed the built UI works through Step-8c. `npm run build` succeeded without warnings (initial bundle 398.02 kB); `npm run lint` → “All files pass linting.” `dotnet build EventHub.sln --no-restore` → 0 warnings, 0 errors. Purpose explanations reviewed; strict JSON responsibilities are documented in `web/README.md`. Owner requested the current batch be committed.
+
+**Status.** Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build)
 
 ---
 
@@ -643,21 +663,25 @@ structure of CP-09. ⛔ Feature pages are placeholders only.
 
 **Implementation**
 
-- [ ] `ngx-echarts` + `echarts`
-- [ ] KPI tiles: revenue, tickets sold, bookings (from `/bookings/stats`); average fill % (from `/events/mine`)
-- [ ] Charts: revenue by month (bar), top 10 events (horizontal bar), status split (donut)
-- [ ] Loading/empty states, INR formatting, Refresh button, responsive resize
+- [x] `ngx-echarts` + `echarts`
+- [x] KPI tiles: revenue, tickets sold, bookings (from `/bookings/stats`); average fill % (from `/events/mine`)
+- [x] Charts: revenue by month (bar), top 10 events (horizontal bar), status split (donut)
+- [x] Loading/empty states, INR formatting, Refresh button, responsive resize
 
 **Dependencies.** Step-5, Step-6.
 
 **Acceptance criteria**
 
-- [ ] 👤 All 3 charts render from seed data (FR-UI-10)
-- [ ] 👤 organizer2's numbers differ from organizer's; Admin sees both combined (FR-BKG-06)
-- [ ] 👤 After a new booking, Refresh changes the numbers
-- [ ] 👤 Charts resize with the window
+- [x] 👤 All 3 charts render from seed data (FR-UI-10)
+- [x] 👤 organizer2's numbers differ from organizer's; Admin sees both combined (FR-BKG-06)
+- [x] 👤 After a new booking, Refresh changes the numbers
+- [x] 👤 Charts resize with the window
 
-**Status.** Dependent (Step-5, Step-6)
+**Implementation evidence (2026-09-27).** Standalone feature sources in `web/src/app/features/`; typed adapters in `web/src/app/core/api/`; production build succeeded (initial 398.02 kB, charts lazy-loaded), lint “All files pass linting.” Runtime evidence: Music + maxPrice 1000 produces two cards including Sold out; guest Book tickets returns to selected details after login; organizer Dashboard renders all three charts with ₹651650 revenue, 340 tickets, 154 bookings and 12.8% average fill, no browser errors; API Organizer2 totals ₹733900/355/154 and Admin combined ₹1385550/695/308. Owner confirmed the built UI works through Step-8c on 2026-09-28; browser acceptance checks are approved. Service flows and trade-offs are documented in `docs/services/common/ANGULAR.md`.
+
+**Final verification (2026-09-28).** Owner confirmed the built UI works through Step-8c. `npm run build` succeeded without warnings (initial bundle 398.02 kB); `npm run lint` → “All files pass linting.” `dotnet build EventHub.sln --no-restore` → 0 warnings, 0 errors. Purpose explanations reviewed; strict JSON responsibilities are documented in `web/README.md`. Owner requested the current batch be committed.
+
+**Status.** Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build)
 
 ---
 
@@ -667,19 +691,23 @@ structure of CP-09. ⛔ Feature pages are placeholders only.
 
 **Implementation**
 
-- [ ] `features/admin`: `/admin/users` table, role dropdown, Save, note "applies at next login"
-- [ ] `/admin/bookings`: all bookings with status filter
-- [ ] Documentation: why a role change needs re-login (stateless tokens)
+- [x] `features/admin`: `/admin/users` table, role dropdown, Save, note "applies at next login"
+- [x] `/admin/bookings`: all bookings with status filter
+- [x] Documentation: why a role change needs re-login (stateless tokens)
 
 **Dependencies.** Step-3, Step-5, Step-6.
 
 **Acceptance criteria**
 
-- [ ] 👤 Admin promotes attendee2 to Organizer; after re-login attendee2 sees the Organizer menu (FR-ID-05)
-- [ ] 👤 Before re-login attendee2 still gets 403 on `POST /events` (stateless token)
-- [ ] 👤 Non-admin cannot open either page and the API returns 403 (FR-UI-11)
+- [x] 👤 Admin promotes attendee2 to Organizer; after re-login attendee2 sees the Organizer menu (FR-ID-05)
+- [x] 👤 Before re-login attendee2 still gets 403 on `POST /events` (stateless token)
+- [x] 👤 Non-admin cannot open either page and the API returns 403 (FR-UI-11)
 
-**Status.** Dependent (Step-3, Step-5, Step-6)
+**Implementation evidence (2026-09-27).** Standalone feature sources in `web/src/app/features/`; typed adapters in `web/src/app/core/api/`; production build succeeded (initial 398.02 kB, charts lazy-loaded), lint “All files pass linting.” Runtime evidence: Music + maxPrice 1000 produces two cards including Sold out; guest Book tickets returns to selected details after login; organizer Dashboard renders all three charts with ₹651650 revenue, 340 tickets, 154 bookings and 12.8% average fill, no browser errors; API Organizer2 totals ₹733900/355/154 and Admin combined ₹1385550/695/308. Owner confirmed the built UI works through Step-8c on 2026-09-28; browser acceptance checks are approved. Service flows and trade-offs are documented in `docs/services/common/ANGULAR.md`.
+
+**Final verification (2026-09-28).** Owner confirmed the built UI works through Step-8c. `npm run build` succeeded without warnings (initial bundle 398.02 kB); `npm run lint` → “All files pass linting.” `dotnet build EventHub.sln --no-restore` → 0 warnings, 0 errors. Purpose explanations reviewed; strict JSON responsibilities are documented in `web/README.md`. Owner requested the current batch be committed.
+
+**Status.** Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build)
 
 ---
 
@@ -704,7 +732,7 @@ structure of CP-09. ⛔ Feature pages are placeholders only.
 - [ ] 👤 Browser network tab: a GET is retried on 503, a POST is not (FR-UI-14)
 - [ ] 👤 Edit the same event in two tabs → the second save shows the reload message (FR-CAT-10)
 
-**Status.** Dependent (Step-7b, Step-8a, Step-8b, Step-16)
+**Status.** Not Started
 
 ---
 
@@ -712,35 +740,16 @@ structure of CP-09. ⛔ Feature pages are placeholders only.
 
 Built by the coding agent exactly like Phase A — build, verify, update the board, move on. The owner
 reads the code later, so Phase B code is written **to be studied**: every file has a short header
-comment saying what it does and why, and each step leaves a walkthrough.
+comment saying what it does and why. The Agent service reference explains the request flow,
+tool-calling loop, library behavior, and permission checks alongside real runtime evidence.
 
-### Step-14 — The agent loop by hand (study material)
+### ~~Step-14 — Standalone agent-loop learning exercise~~
 
-**Scope.** A small program that shows exactly what an agent is, with no AI library: raw HTTP to
-Ollama, hand-written tool definitions, parse the model's tool request, run it, send the result back,
-repeat. Built by the coding agent; the owner studies it afterwards.
-⛔ No Microsoft.Extensions.AI, no write tools, not part of the product.
+**Status.** Retired (2026-09-28 — owner removed standalone learning exercise)
 
-**Implementation**
-
-- [ ] `src/Tools/Agent.Playground` console app (~100 lines, plain `HttpClient` + `System.Text.Json`)
-- [ ] Two tools as JSON schema by hand: `search_events(search?, category?, maxPrice?)`, `get_event_details(eventId)` → call Catalog through the gateway (public endpoints, no token needed)
-- [ ] Loop: send messages + tools → if `tool_calls`, execute each, append `role: "tool"` messages, send again → stop on a plain answer or after 5 rounds (loop guard)
-- [ ] Print every round: what was sent, what the model asked for, what the tool returned
-- [ ] Comments at each stage of the loop explaining what is happening and why (the code is study material)
-- [ ] `src/Tools/Agent.Playground/WALKTHROUGH.md`: how to run it; a real captured run annotated round by round; the four message roles (system, user, assistant, tool); what "ReAct" means here; why the loop guard exists; which lines Microsoft.Extensions.AI replaces in Step-9
-
-**Dependencies.** Step-1e, Step-4.
-
-**Acceptance criteria**
-
-- [ ] "Music events under ₹1000?" → console shows round 1 with a `search_events` tool call and its arguments
-- [ ] The final answer lists events that exist in the Catalog database
-- [ ] A tool returning an error (unknown event id) is explained by the model, not crashed on
-- [ ] Forcing a looping prompt stops at round 5 with a clear message
-- [ ] `WALKTHROUGH.md` exists and contains a real annotated run (not an invented one)
-
-**Status.** Not Started
+The owner chose to learn agent concepts directly inside the EventHub Agent service in Steps 9–11.
+No separate console app or manual-loop exercise is planned. Step-14's number remains reserved.
+The learning explanations belong in `docs/services/agent/API.md` and beside the application code.
 
 ---
 
@@ -758,7 +767,7 @@ timeout and a bulkhead. ⛔ Cannot book, cancel or read stats.
 - [ ] **Agent.Api:** `POST /chat`, `.RequireAuthorization()`
 - [ ] Gateway: `/agent` route timeout 120 s (YARP route `Timeout`), so slow model answers are not cut off (NFR-04)
 - [ ] `agent.http`: login + 5 questions + a parallel-requests script
-- [ ] `src/Services/Agent/WALKTHROUGH.md`: how a chat request flows through the layers; side-by-side of the Step-14 hand-written loop and what `UseFunctionInvocation()` now does for you; where the user's token travels
+- [ ] `docs/services/agent/API.md`: explain how a chat request flows through the layers; the model → tool request → execution → tool result → answer loop; what `UseFunctionInvocation()` handles; the system/user/assistant/tool message roles; where the user's token travels; and a real logged tool-call example. Keep learning explanations beside the application code and in this service reference.
 
 **Dependencies.** Step-1e, Step-5, Step-17.
 

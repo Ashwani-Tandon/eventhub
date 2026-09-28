@@ -21,11 +21,38 @@ dotnet run --project src/Aspire/EventHub.AppHost
 | `catalog`    | Event and seat APIs                                       | References/waits for catalogdb                        |
 | `booking`    | Purchase/cancellation/statistics APIs                     | References/waits for bookingdb and Catalog            |
 | `agent`      | Current Agent scaffold                                    | References/waits for Catalog and Booking; no database |
+| `web`        | Angular dev server on 4200                                | Waits for Gateway; runs `npm run start` in `web/`     |
 | `gateway`    | Public entry point on 5100                                | References/waits for all four services                |
 
 `WithReference` supplies connections/discovery configuration. `WaitFor` declares startup readiness dependencies; it is not a transaction, runtime retry policy, or guarantee a dependency will never fail later.
 Booking waits for Catalog because initial development seeding reads actual event snapshots through HTTP. Each service migrates/seeds only its own database.
 Persistent SQL storage survives application restarts; it must not be removed merely to apply a migration.
+
+## Angular startup and dashboard visibility
+
+The owner approved unified startup on 2026-09-27; NFR-01 now uses the same one-command flow as SPEC §4.
+Run `npm install` in `web/` once after cloning, then the AppHost command starts both backend and frontend.
+`AddExecutable("web", "npm", "../../../web", "run", "start")` runs the existing Angular start script from the
+repository's `web/` folder (the working directory is relative to AppHost). Aspire owns that process lifecycle and captures
+Angular's build/dev-server console output under the `web` resource. It waits for Gateway before starting.
+
+This uses Aspire's existing executable support: no additional JavaScript integration package or npm wrapper is needed
+for this local Angular CLI command. Dependency installation remains an explicit one-time setup; startup does not
+silently change npm dependencies. The HTTP endpoint declares both `port` and `targetPort` as 4200 and `isProxied: false`.
+Angular binds that port itself; Aspire advertises its URL without also taking the port with a second proxy.
+See [Aspire's proxyless endpoint explanation](https://aspire.dev/fundamentals/networking-overview/).
+Angular's existing `/api` proxy still forwards browser calls to Gateway on 5100.
+
+In the dashboard, open Resources → `web` to see Running, `http://localhost:4200`, and console logs. Stop/restart `web`
+there when working on the dev server. Do not run a second `npm start` while Aspire already owns port 4200.
+The trade-offs are a shared development lifecycle (stopping AppHost stops Angular), a wait for Gateway readiness
+before Angular starts, and a port conflict if a second dev server is launched manually. For independent frontend work,
+stop `web` in the dashboard, then use `npm start`. A backend failure after startup does not automatically stop Angular.
+
+Verified on 2026-09-27: solution build 0 warnings/0 errors, dashboard `web` Running with port-4200 URL, Angular build/watch
+output in Console logs, and HTTP 200 from both Angular `/` and its `/api/identity/health` proxy.
+
+These are local development server logs; registration does not automatically add browser actions to backend traces.
 
 ## Configuration and secrets
 
@@ -52,17 +79,17 @@ Stop/start an individual service there to observe dependency failures without de
 
 Project: `src/Aspire/EventHub.ServiceDefaults`. APIs and Gateway call shared setup rather than duplicating technical hosting configuration.
 
-| Feature           | Current behavior                                                                                                                |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Discovery         | Resolves outbound HTTP clients through Aspire service names                                                                     |
-| Resilience        | Shared configurable total timeout → retry → circuit breaker → attempt timeout for service HTTP calls                            |
-| Telemetry         | OpenTelemetry logging, ASP.NET/HTTP tracing, HTTP/server/runtime metrics; OTLP export when configured                           |
-| Health            | Development-only `/health` runs registered checks; `/alive` runs checks tagged `live`; healthy gives 200, unhealthy 503         |
-| Authentication    | APIs validate JWT signature, issuer `eventhub-identity`, audience `eventhub`, expiry, and HS256 algorithm with zero clock skew  |
-| Authorization     | Organizer policy accepts Organizer or Admin; Admin policy accepts only Admin                                                    |
-| Caller context    | Implements BuildingBlocks user/profile interfaces from signed claims                                                            |
-| HTTP results      | Translates Results into 200/201/204 or typed ProblemDetails; validation includes `errors`                                       |
-| Unexpected errors | Logs exception details and returns a safe 500 body with trace ID instead of leaking a stack trace                               |
+| Feature           | Current behavior                                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Discovery         | Resolves outbound HTTP clients through Aspire service names                                                                    |
+| Resilience        | Shared configurable total timeout → retry → circuit breaker → attempt timeout for service HTTP calls                           |
+| Telemetry         | OpenTelemetry logging, ASP.NET/HTTP tracing, HTTP/server/runtime metrics; OTLP export when configured                          |
+| Health            | Development-only `/health` runs registered checks; `/alive` runs checks tagged `live`; healthy gives 200, unhealthy 503        |
+| Authentication    | APIs validate JWT signature, issuer `eventhub-identity`, audience `eventhub`, expiry, and HS256 algorithm with zero clock skew |
+| Authorization     | Organizer policy accepts Organizer or Admin; Admin policy accepts only Admin                                                   |
+| Caller context    | Implements BuildingBlocks user/profile interfaces from signed claims                                                           |
+| HTTP results      | Translates Results into 200/201/204 or typed ProblemDetails; validation includes `errors`                                      |
+| Unexpected errors | Logs exception details and returns a safe 500 body with trace ID instead of leaking a stack trace                              |
 
 Health polling is excluded from normal server tracing. Health routes are not automatically authenticated. The Gateway does not call shared JWT setup; destination APIs validate tokens.
 `AddEventHubResilience(dependencyName)` is the one opt-in for service clients. Booking's Catalog client uses it now; later Agent clients use the same implementation rather than copying policy code. Values bind from the caller's `Resilience` configuration section and are validated during startup.

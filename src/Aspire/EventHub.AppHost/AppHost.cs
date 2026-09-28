@@ -1,4 +1,4 @@
-// Starts the SQL resources and service dependency graph through Aspire.
+// Starts SQL, backend services, and the Angular dev server through Aspire.
 // Supplies secret parameters and discovery references to the services that need them.
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -44,7 +44,7 @@ var agent = builder.AddProject<Projects.Agent_Api>("agent")
     .WaitFor(booking)
     .WithEnvironment("Jwt__Key", jwtKey);
 
-builder.AddProject<Projects.EventHub_Gateway>("gateway")
+var gateway = builder.AddProject<Projects.EventHub_Gateway>("gateway")
     .WithReference(identity)
     .WithReference(catalog)
     .WithReference(booking)
@@ -54,5 +54,12 @@ builder.AddProject<Projects.EventHub_Gateway>("gateway")
     .WaitFor(booking)
     .WaitFor(agent)
     .WithExternalHttpEndpoints();
+
+// Run the existing Angular start script once Gateway is ready so login can work immediately.
+// Angular owns port 4200 directly; disabling Aspire's port proxy avoids two listeners on that port.
+builder.AddExecutable("web", "npm", "../../../web", "run", "start")
+    .WithHttpEndpoint(port: 4200, targetPort: 4200, isProxied: false)
+    .WithExternalHttpEndpoints()
+    .WaitFor(gateway);
 
 builder.Build().Run();

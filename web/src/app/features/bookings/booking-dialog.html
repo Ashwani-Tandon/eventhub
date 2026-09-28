@@ -1,0 +1,30 @@
+<!-- Ticket limits and a live total let the user review the purchase before confirming.
+     The development payment switch is hidden when Angular runs in production mode. -->
+<h2 mat-dialog-title>Book tickets</h2>
+<mat-dialog-content
+  ><h3>{{ event.title }}</h3>
+  <p>{{ event.price | currency: 'INR' }} per ticket · {{ event.seatsLeft }} seats available</p>
+  <form [formGroup]="form" id="booking-form" (ngSubmit)="confirm()">
+    <label>Tickets<input type="number" formControlName="quantity" min="1" [max]="max" /></label>
+    @if (form.controls.quantity.touched && form.controls.quantity.invalid) {
+      <p class="error">Choose a whole number from 1 to {{ max }}.</p>
+    }
+    <p class="booking-total">
+      Total <strong>{{ total() | currency: 'INR' }}</strong>
+    </p>
+    @if (development) {
+      <label class="checkbox-label"
+        ><input type="checkbox" formControlName="simulatePaymentFailure" />Simulate payment failure
+        (development demo)</label
+      >
+    }
+    @if (error()) {
+      <p class="notice error" role="alert">{{ error() }}</p>
+    }
+  </form></mat-dialog-content
+><mat-dialog-actions align="end"
+  ><button mat-button [mat-dialog-close]="false" [disabled]="pending()">Back</button
+  ><button mat-flat-button type="submit" form="booking-form" [disabled]="pending()">
+    {{ pending() ? 'Booking…' : 'Confirm booking' }}
+  </button></mat-dialog-actions
+>

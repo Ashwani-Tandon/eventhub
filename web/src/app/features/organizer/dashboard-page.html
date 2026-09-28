@@ -1,0 +1,116 @@
+<!-- Sales cards and charts reflect the role scope selected by the backend.
+     Capacity feedback is independent from the Booking statistics request. -->
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">SEE THE BIGGER PICTURE</p>
+    <h1>Dashboard</h1>
+    <p>{{ auth.role() === 'Admin' ? 'Sales across all organizers.' : 'Sales for your events.' }}</p>
+  </div>
+  <button mat-stroked-button (click)="refresh()" [disabled]="statsLoading() || eventsLoading()">
+    Refresh
+  </button>
+</section>
+@if (statsLoading()) {
+  <p class="notice" role="status">Loading sales…</p>
+} @else if (statsError()) {
+  <p class="notice error" role="alert">{{ statsError() }}</p>
+}
+<div class="kpi-grid">
+  <section class="kpi">
+    <p>Revenue</p>
+    <strong>{{
+      statsError() || statsLoading()
+        ? '—'
+        : (stats()?.totals?.revenue ?? 0 | currency: 'INR' : 'symbol' : '1.0-0')
+    }}</strong
+    ><small>Confirmed purchases</small>
+  </section>
+  <section class="kpi">
+    <p>Tickets sold</p>
+    <strong>{{
+      statsError() || statsLoading() ? '—' : (stats()?.totals?.ticketsSold ?? 0 | number)
+    }}</strong
+    ><small>Confirmed tickets</small>
+  </section>
+  <section class="kpi">
+    <p>Bookings</p>
+    <strong>{{
+      statsError() || statsLoading() ? '—' : (stats()?.totals?.bookings ?? 0 | number)
+    }}</strong
+    ><small>Including cancelled</small>
+  </section>
+  <section class="kpi">
+    <p>Average fill</p>
+    <strong>{{
+      eventsLoading() || eventsError() ? '—' : (averageFill() | percent: '1.0-1')
+    }}</strong
+    ><small>{{
+      eventsError()
+        ? 'Capacity unavailable'
+        : eventsLoading()
+          ? 'Loading capacity…'
+          : events().length + ' managed events'
+    }}</small>
+  </section>
+</div>
+@if (eventsError()) {
+  <p class="notice error" role="alert">Event capacity: {{ eventsError() }}</p>
+}
+@if (!statsLoading() && !statsError() && stats(); as stats) {
+  @if (stats.totals.bookings === 0) {
+    <section class="empty">
+      <h2>No bookings yet</h2>
+      <p>Your sales charts will grow as people book tickets.</p>
+    </section>
+  } @else {
+    <div class="chart-grid">
+      <section class="chart-panel wide">
+        <h2>Revenue by month</h2>
+        <p class="muted">Confirmed sales · last six calendar months · INR</p>
+        <div
+          echarts
+          [options]="monthly()"
+          [autoResize]="true"
+          class="chart"
+          aria-label="Revenue by month chart"
+        ></div>
+        <p class="small muted">
+          @for (month of stats.revenueByMonth; track month.month) {
+            <span
+              >{{ month.month }}: {{ month.revenue | currency: 'INR' : 'symbol' : '1.0-0' }} ·
+            </span>
+          }
+        </p>
+      </section>
+      <section class="chart-panel">
+        <h2>Top events</h2>
+        <p class="muted">Ranked by confirmed tickets</p>
+        @if (stats.topEvents.length) {
+          <div
+            echarts
+            [options]="top()"
+            [autoResize]="true"
+            class="chart tall"
+            aria-label="Top ten events by tickets sold"
+          ></div>
+        } @else {
+          <p class="notice">No confirmed sales yet.</p>
+        }
+      </section>
+      <section class="chart-panel">
+        <h2>Booking status</h2>
+        <div
+          echarts
+          [options]="status()"
+          [autoResize]="true"
+          class="chart"
+          aria-label="Confirmed and cancelled booking counts"
+        ></div>
+        <p class="muted small">
+          {{ stats.totals.bookings - stats.totals.cancelled }} confirmed ·
+          {{ stats.totals.cancelled }} cancelled
+        </p>
+      </section>
+    </div>
+  }
+}

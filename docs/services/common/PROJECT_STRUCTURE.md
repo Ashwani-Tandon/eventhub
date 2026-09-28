@@ -34,8 +34,10 @@ EventHub/
         └── EventHub.SeedData/         Deterministic development seed-data definitions
 ```
 
-`web/` will be added in Step-6 for the Angular application. `Agent.Playground` will be added in
-Step-14 as standalone learning material.
+`web/` contains the Angular application built in Steps 6–8c, with owner verification confirmed on 2026-09-28.
+Agent concepts will be taught directly through the EventHub Agent service code, runtime logs,
+and `docs/services/agent/API.md`. The owner removed the separate console learning exercise
+on 2026-09-28 to focus implementation and study on the application itself.
 
 ## How one business service is divided
 

@@ -1,0 +1,77 @@
+<!-- Organizers manage their own events; Admin can see and edit every organizer's events.
+     Public detail links and editor routes let users review each action's target. -->
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">MAKE SOMETHING HAPPEN</p>
+    <h1>My Events</h1>
+    <p>
+      {{
+        auth.role() === adminRole
+          ? 'Manage events across all organizers.'
+          : 'Your events, from first idea to opening night.'
+      }}
+    </p>
+  </div>
+  <div class="actions">
+    <button mat-stroked-button (click)="load()" [disabled]="loading()">Refresh</button
+    ><a mat-flat-button routerLink="/my-events/new">Create event</a>
+  </div>
+</section>
+@if (loading()) {
+  <p class="notice" role="status">Loading your events…</p>
+} @else if (error()) {
+  <p class="notice error" role="alert">{{ error() }}</p>
+} @else if (!events().length) {
+  <section class="empty">
+    <h2>Your first event starts with an idea.</h2>
+    <a mat-flat-button routerLink="/my-events/new">Create event</a>
+  </section>
+} @else {
+  <div class="table-wrap">
+    <table>
+      <caption class="sr-only">
+        Managed events
+      </caption>
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th>Date</th>
+          <th>Price</th>
+          <th>Capacity</th>
+          <th>Sold</th>
+          @if (auth.role() === adminRole) {
+            <th>Organizer</th>
+          }
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (event of events(); track event.id) {
+          <tr>
+            <td>
+              <a [routerLink]="['/events', event.id]">{{ event.title }}</a
+              ><small>{{ event.category }} · {{ event.city }}</small>
+            </td>
+            <td>{{ event.startsAt | date: 'd MMM yyyy, h:mm a' }}</td>
+            <td>{{ event.price | currency: 'INR' }}</td>
+            <td>{{ event.capacity }}</td>
+            <td>
+              {{ event.seatsBooked }}<small>{{ event.seatsLeft }} left</small>
+            </td>
+            @if (auth.role() === adminRole) {
+              <td>
+                <span class="identifier" [title]="event.organizerId">{{ event.organizerId }}</span>
+              </td>
+            }
+            <td class="row-actions">
+              <a mat-button [routerLink]="['/my-events', event.id, 'edit']">Edit</a
+              ><button mat-button (click)="delete(event)" [disabled]="deleting() !== null">
+                {{ deleting() === event.id ? 'Deleting…' : 'Delete' }}
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

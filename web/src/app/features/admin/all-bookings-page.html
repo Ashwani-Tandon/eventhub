@@ -1,0 +1,71 @@
+<!-- This read-only admin table includes all purchasers and the saved cancellation state.
+     The status selector is sent to Booking's authorized listing endpoint. -->
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">ADMINISTRATION</p>
+    <h1>All Bookings</h1>
+    <p>A complete view of purchases across EventHub.</p>
+  </div>
+  <button mat-stroked-button (click)="load()" [disabled]="loading()">Refresh</button>
+</section>
+<div class="filter-panel compact">
+  <label
+    >Status<select [formControl]="status">
+      <option value="">All statuses</option>
+      <option value="Confirmed">Confirmed</option>
+      <option value="Cancelled">Cancelled</option>
+    </select></label
+  ><span>{{ bookings().length }} bookings</span>
+</div>
+@if (loading()) {
+  <p class="notice" role="status">Loading bookings…</p>
+} @else if (error()) {
+  <p class="notice error" role="alert">{{ error() }}</p>
+} @else if (!bookings().length) {
+  <section class="empty"><h2>No bookings with this status</h2></section>
+} @else {
+  <div class="table-wrap">
+    <table>
+      <caption class="sr-only">
+        All bookings
+      </caption>
+      <thead>
+        <tr>
+          <th>Booking</th>
+          <th>Event</th>
+          <th>Purchaser</th>
+          <th>Event date</th>
+          <th>Tickets</th>
+          <th>Total</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (booking of bookings(); track booking.id) {
+          <tr>
+            <td>
+              #{{ booking.id }}<small>{{ booking.createdAt | date: 'd MMM yyyy' }}</small>
+            </td>
+            <td>
+              <a [routerLink]="['/events', booking.eventId]">{{ booking.eventTitle }}</a>
+            </td>
+            <td>
+              <span class="identifier" [title]="booking.userId">{{ booking.userId }}</span>
+            </td>
+            <td>{{ booking.eventStartsAt | date: 'd MMM yyyy, h:mm a' }}</td>
+            <td>{{ booking.quantity }}</td>
+            <td>{{ booking.total | currency: 'INR' }}</td>
+            <td>
+              <span class="badge" [class.cancelled]="booking.status === 'Cancelled'">{{
+                booking.status
+              }}</span>
+              @if (booking.seatReleasePending) {
+                <small class="error">Seat return pending</small>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

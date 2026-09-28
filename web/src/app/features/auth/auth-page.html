@@ -1,0 +1,59 @@
+<!-- This form collects Identity credentials and displays accessible validation.
+     Pending state prevents repeat submissions while Identity responds. -->
+<section class="auth-card">
+  <p class="eyebrow">YOUR EVENTHUB ACCOUNT</p>
+  <h1>{{ registering ? 'Join the next experience.' : 'Welcome back.' }}</h1>
+  <p class="intro">
+    {{
+      registering
+        ? 'Create an account to book your next event.'
+        : 'Sign in to manage your bookings and events.'
+    }}
+  </p>
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    @if (registering) {
+      <mat-form-field appearance="outline"
+        ><mat-label>Full name</mat-label>
+        <input matInput formControlName="fullName" autocomplete="name" maxlength="100" />
+        <mat-error>Enter your name (up to 100 characters).</mat-error>
+      </mat-form-field>
+    }
+    <mat-form-field appearance="outline"
+      ><mat-label>Email address</mat-label>
+      <input
+        matInput
+        formControlName="email"
+        type="email"
+        autocomplete="username"
+        maxlength="256"
+      />
+      <mat-error>Enter a valid email address.</mat-error>
+    </mat-form-field>
+    <mat-form-field appearance="outline"
+      ><mat-label>Password</mat-label>
+      <input
+        matInput
+        formControlName="password"
+        type="password"
+        [autocomplete]="registering ? 'new-password' : 'current-password'"
+      />
+      <mat-error>{{
+        registering ? 'Use at least 8 characters.' : 'Enter your password.'
+      }}</mat-error>
+    </mat-form-field>
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+    <button mat-flat-button type="submit" [disabled]="pending()">
+      {{ pending() ? 'Please wait…' : registering ? 'Create account' : 'Sign in' }}
+    </button>
+  </form>
+  <p class="switch">
+    {{ registering ? 'Already have an account?' : 'New to EventHub?' }}
+    <a
+      [routerLink]="registering ? '/login' : '/register'"
+      [queryParams]="{ returnUrl: returnUrl }"
+      >{{ registering ? 'Sign in' : 'Create an account' }}</a
+    >
+  </p>
+</section>
