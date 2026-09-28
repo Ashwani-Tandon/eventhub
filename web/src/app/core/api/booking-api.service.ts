@@ -8,8 +8,14 @@ export class BookingApiService {
   private readonly http = inject(HttpClient);
   private readonly base = '/api/booking/bookings';
   // Submit one purchase; automatic write retries are deliberately absent.
-  book(eventId: number, quantity: number, simulatePaymentFailure: boolean) {
-    return this.http.post<Booking>(this.base, { eventId, quantity, simulatePaymentFailure });
+  book(eventId: number, quantity: number, simulatePaymentFailure: boolean, idempotencyKey: string) {
+    return this.http.post<Booking>(
+      this.base,
+      { eventId, quantity, simulatePaymentFailure },
+      {
+        headers: { 'Idempotency-Key': idempotencyKey },
+      },
+    );
   }
   // History is read from Booking without needing Catalog's availability.
   mine() {

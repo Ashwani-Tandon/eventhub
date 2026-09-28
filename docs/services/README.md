@@ -18,7 +18,7 @@ Catalog's internal seat APIs are service-to-service operations, not gateway APIs
 | Reference                                             | Purpose                                                                               |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | [Project structure](common/PROJECT_STRUCTURE.md)      | Repository map, all service projects, and layer responsibilities                      |
-| [Angular shell and authentication](common/ANGULAR.md) | Browser session, forms, role menus, guards, and local proxy                           |
+| [Angular UI and resilience](common/ANGULAR.md) | Browser session, feature screens, read retries, booking request keys, and panel recovery                           |
 | [Gateway](common/GATEWAY.md)                          | Public routing, prefix transforms, and security boundaries                            |
 | [BuildingBlocks](common/BUILDING_BLOCKS.md)           | Mediator, CQRS, pipeline behaviors, Result errors, and caller contracts               |
 | [Aspire / ServiceDefaults](common/ASPIRE.md)          | Startup resources, dependencies, configuration, health, telemetry, and authentication |

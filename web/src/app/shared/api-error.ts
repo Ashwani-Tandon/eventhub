@@ -4,8 +4,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 // Prefer meaningful field errors, then the API's business detail.
 export function apiError(error: unknown): string {
   if (!(error instanceof HttpErrorResponse)) return 'Something went wrong. Please try again.';
-  if (error.status === 0 || error.status === 503)
+  if ([0, 502, 503, 504].includes(error.status))
     return 'Service temporarily unavailable. Please try again.';
+  if (error.status === 429) return 'Too many requests, wait a moment';
   if (error.status === 401) return 'Please sign in again.';
   if (error.status === 403) return 'You do not have permission to do that.';
   if (error.status === 422)

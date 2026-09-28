@@ -8,17 +8,14 @@
   </div>
   <button mat-stroked-button (click)="load()" [disabled]="loading()">Refresh</button>
 </section>
-@if (loading()) {
-  <p class="notice" role="status">Loading bookings…</p>
-} @else if (error()) {
-  <p class="notice error" role="alert">{{ error() }}</p>
-} @else if (!bookings().length) {
-  <section class="empty">
-    <h2>Your next experience starts here.</h2>
-    <p>You haven't booked any tickets yet.</p>
-    <a mat-flat-button routerLink="/events">Explore events</a>
-  </section>
-} @else {
+<app-panel-state
+  [loading]="loading()"
+  [error]="error()"
+  [empty]="!bookings().length"
+  loadingText="Loading bookings…"
+  emptyText="You haven't booked any tickets yet. Explore Events to make your first booking."
+  (retryRequested)="load()"
+>
   <div class="table-wrap">
     <table>
       <caption class="sr-only">
@@ -74,4 +71,5 @@
       </tbody>
     </table>
   </div>
-}
+  <a panel-empty mat-flat-button routerLink="/events">Explore events</a>
+</app-panel-state>

@@ -1,23 +1,27 @@
 // This page displays one Catalog event and opens the purchase dialog.
 // A successful purchase reloads seat availability instead of guessing the new count.
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { finalize } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CatalogApiService } from '../../core/api/catalog-api.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { EventItem } from '../../core/models/event.models';
 import { BookingDialog } from '../bookings/booking-dialog';
+import { PanelState } from '../../shared/panel-state';
 import { apiError } from '../../shared/api-error';
 @Component({
   selector: 'app-event-details',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CurrencyPipe, DatePipe, RouterLink, MatButtonModule],
+  imports: [CurrencyPipe, DatePipe, RouterLink, MatButtonModule, PanelState],
   templateUrl: './event-details.html',
 })
 export class EventDetails {
+  // Leaving this page cancels its reads and any pending retry delay.
+  private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(CatalogApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -36,7 +40,10 @@ export class EventDetails {
     this.error.set('');
     this.api
       .get(Number(this.route.snapshot.paramMap.get('id')))
-      .pipe(finalize(() => this.loading.set(false)))
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.loading.set(false)),
+      )
       .subscribe({
         next: (event) => this.event.set(event),
         error: (error) => {

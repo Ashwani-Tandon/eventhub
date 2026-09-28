@@ -1,23 +1,27 @@
 // This page shows the caller's booking snapshots and repeatable cancellation.
 // Pending seat returns remain visible so users can finish cancellation after recovery.
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { finalize } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BookingApiService } from '../../core/api/booking-api.service';
 import { Booking } from '../../core/models/booking.models';
 import { ConfirmDialog } from '../../shared/confirm-dialog';
+import { PanelState } from '../../shared/panel-state';
 import { apiError } from '../../shared/api-error';
 @Component({
   selector: 'app-bookings-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CurrencyPipe, DatePipe, RouterLink, MatButtonModule],
+  imports: [CurrencyPipe, DatePipe, RouterLink, MatButtonModule, PanelState],
   templateUrl: './bookings-page.html',
 })
 export class BookingsPage {
+  // Leaving this page cancels its reads and any pending retry delay.
+  private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(BookingApiService);
   private readonly dialog = inject(MatDialog);
   private readonly snackbar = inject(MatSnackBar);
@@ -35,7 +39,10 @@ export class BookingsPage {
     this.error.set('');
     this.api
       .mine()
-      .pipe(finalize(() => this.loading.set(false)))
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.loading.set(false)),
+      )
       .subscribe({
         next: (bookings) => this.bookings.set(bookings),
         error: (error) => this.error.set(apiError(error)),

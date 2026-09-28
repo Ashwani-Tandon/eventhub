@@ -140,7 +140,11 @@ export class EventEditor {
         void this.router.navigate(['/my-events']);
       },
       error: (error) => {
-        this.error.set(apiError(error));
+        this.error.set(
+          this.id && error.status === 409
+            ? 'This event was changed by someone else — reload the latest event before saving again.'
+            : apiError(error),
+        );
         this.conflict.set(error.status === 409);
       },
     });

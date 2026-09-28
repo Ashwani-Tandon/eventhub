@@ -107,7 +107,7 @@ and dialog dismissal. Success shows a snackbar, closes the dialog, and reloads C
 
 The clearly labelled payment-failure checkbox is guarded by Angular's `isDevMode()`; production builds hide it and always
 send false. Payments are simulated by the configured backend `FakePaymentGateway`, with no external charge.
-Step-19 will add a stable per-attempt idempotency key and GET retry policy; this batch does not claim those protections.
+Step-19 adds a stable per-attempt idempotency key and retries only reads, as explained below.
 
 `/my-bookings` reads only `GET /booking/bookings/mine`, using copied event title/date/price rather than requiring Catalog.
 Confirmed and cancelled rows remain visible. Cancellation asks for confirmation and calls `POST /bookings/{id}/cancel`.
@@ -125,7 +125,7 @@ Typed forms validate title/description length, category, nonnegative price, whol
 already booked seats), and a future create/changed date. Unchanged historical dates are allowed on edit. Displayed input
 is local time; submissions use UTC. An unchanged date keeps the original server timestamp including its seconds.
 
-Create calls POST; edit calls PUT with the rowVersion originally read. A 409 displays the server's stale-edit message
+Create calls POST; edit calls PUT with the rowVersion originally read. An edit 409 explains that someone else changed the event and asks the user to reload
 and disables saving until Reload latest event, which explicitly discards unsaved edits. No silent overwrite is attempted.
 Deletion uses a named confirmation dialog and DELETE; a booked-seat 409 is shown and the row remains. Successful changes
 return to/refetch the managed list. The public list fetches current data when revisited. Server validators and ownership
@@ -143,7 +143,7 @@ Three charts show six calendar months of revenue, the top ten events by confirme
 pie, canvas, tooltip, grid, legend, and accessibility modules are registered. The dashboard route lazy-loads these libraries,
 keeping them out of the initial account/browsing bundle. Charts resize with their containers; screen-reader summaries and
 monthly numeric values accompany canvas output. Refresh reloads both sources; no-data and failed-request feedback are explicit.
-The shared panel-state/retry treatment remains Step-19 work.
+Each KPI and chart uses the shared panel state added in Step-19. Sales regions share one Booking read; average fill has its own Catalog read and Retry action.
 
 ## Administration — Step-8c
 
@@ -163,3 +163,58 @@ the solution build reported zero warnings and errors. Earlier agent verification
 was stopped by automatic approval review; the owner subsequently verified the application directly.
 Build/lint, earlier live API/UI observations, and final owner approval are recorded in the execution plan.
 No tests were added. Step-19 and chat are outside this batch.
+
+## UI resilience — Step-19
+
+An HTTP interceptor is a function that runs around each outgoing browser request. The existing auth
+interceptor attaches the token; `core/interceptors/retry.interceptor.ts` handles temporary read failures.
+Only EventHub GET requests are repeated, and only for a network failure (status 0), 502, 503, or 504.
+The first retry waits 500 ms and the second waits 1 s: one original request plus at most two repeats.
+RxJS `retry` resubscribes to the HTTP request; `timer` provides the delay without blocking the screen.
+400, 401, 403, 404 and 429 do not qualify. POST, PUT and DELETE are never automatically repeated,
+even when a booking carries an idempotency key. Leaving a read page cancels its pending retry delay.
+
+A booking attempt is the purchase the user is currently confirming. Before the first request,
+`BookingDialog` creates `crypto.randomUUID()` and `BookingApiService` sends it as `Idempotency-Key`.
+The dialog disables Confirm, ticket inputs, Back and dismissal during the request; an early pending
+check also rejects a second click before Angular redraws the button. After an ambiguous failure,
+pressing Confirm with unchanged quantity and payment-demo choice resends the same key. The backend
+can return a booking whose first response was lost without reserving or paying again. Changing the
+submitted values starts another attempt with a new key. A clear 400/404/422 rejection ends the attempt,
+so a subsequent Confirm can try a new purchase; this also avoids repeating a deterministic fake-payment
+decline forever. The key is retained only in the open dialog. After an uncertain outcome, check My
+Bookings before closing/reopening the dialog or refreshing, because those actions lose the attempt key.
+
+`shared/panel-state.ts` displays loading, an error with Retry, an empty explanation, or successful
+content supplied by the page. Events, event details and My Bookings use it for their read region.
+Every dashboard KPI/chart uses it as well: a sales Retry reloads the single shared Booking result;
+a capacity Retry reloads only Catalog. A pending check prevents several Retry clicks from starting
+parallel reads. Failed or loading regions hide old values rather than presenting them as fresh data.
+The rest of the page continues to work; no-data feedback is distinct from a failed request.
+
+The common error helper shows “Too many requests, wait a moment” for 429 and service-unavailable
+feedback for network/502/503/504 failures. Event edits show a specific reload instruction for 409,
+preserve the unsaved form, and block another save until the owner chooses Reload latest event.
+Reload deliberately discards unsaved edits, so the UI never silently overwrites someone else's changes.
+
+### Runtime verification and development-proxy limitation
+
+On 2026-09-28, Booking was stopped in Aspire: Events remained available and dashboard capacity
+still showed 12.8%. Aspire's endpoint proxy kept connections to the stopped process open rather
+than immediately returning a failure. Browser backoff begins only after a failed HTTP response;
+it does not add a request timeout. Gateway timeout work remains deferred under Later L-2.
+
+To observe actual connection failures, a temporary copy of the existing Gateway was run on 5101
+with command-line destinations set to the live services' direct listening ports, and a temporary
+Angular server on 4201 forwarded to that Gateway. Product configuration stays at Gateway 5100
+and UI 4200. The services themselves were stopped/restarted through Aspire. No simulated response
+server, test files, or permanent configuration changes were added.
+
+Observed behavior: three Catalog GETs returned 502; a failed Booking POST returned 502 exactly once;
+failed sales regions showed Retry while capacity stayed readable; sales recovered with Retry after
+Booking restarted; attendee history loaded while Catalog was stopped. Double-clicking Confirm
+created booking #310 for two tickets: history grew from 158 to 159 bookings and seats went from
+227 to 225. An earlier fake-payment decline produced one POST/422 and left seats unchanged.
+Two editor tabs for event #37 produced PUT/200 then PUT/409 with the reload message; reloading
+and saving restored the original description. These are agent observations; the plan's marked
+owner browser criteria, including the network-tab 503 check, remain pending owner review.

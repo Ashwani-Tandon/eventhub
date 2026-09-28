@@ -1,6 +1,13 @@
 // The dashboard combines Booking's scoped sales with Catalog's managed-event capacity.
 // Independent requests let sales remain readable when only event capacity fails to load.
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  signal,
+} from '@angular/core';
 import { CurrencyPipe, DecimalPipe, PercentPipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
@@ -15,11 +22,13 @@ import {
 import { CanvasRenderer } from 'echarts/renderers';
 import { EChartsCoreOption } from 'echarts/core';
 import { finalize } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BookingApiService } from '../../core/api/booking-api.service';
 import { CatalogApiService } from '../../core/api/catalog-api.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { SalesStats } from '../../core/models/booking.models';
 import { EventItem } from '../../core/models/event.models';
+import { PanelState } from '../../shared/panel-state';
 import { apiError } from '../../shared/api-error';
 // Register only the chart types/rendering features used here; lazy routing keeps them out of login.
 echarts.use([
@@ -34,11 +43,20 @@ echarts.use([
 @Component({
   selector: 'app-dashboard-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CurrencyPipe, DecimalPipe, PercentPipe, MatButtonModule, NgxEchartsDirective],
+  imports: [
+    CurrencyPipe,
+    DecimalPipe,
+    PercentPipe,
+    MatButtonModule,
+    NgxEchartsDirective,
+    PanelState,
+  ],
   providers: [provideEchartsCore({ echarts })],
   templateUrl: './dashboard-page.html',
 })
 export class DashboardPage {
+  // Leaving this page cancels its reads and any pending retry delay.
+  private readonly destroyRef = inject(DestroyRef);
   private readonly bookingApi = inject(BookingApiService);
   private readonly catalogApi = inject(CatalogApiService);
   readonly auth = inject(AuthService);
@@ -115,24 +133,32 @@ export class DashboardPage {
     this.loadEvents();
   }
   // Only Booking data powers revenue, tickets, booking counts, and all three charts.
-  private loadStats() {
+  loadStats() {
+    if (this.statsLoading()) return;
     this.statsLoading.set(true);
     this.statsError.set('');
     this.bookingApi
       .stats()
-      .pipe(finalize(() => this.statsLoading.set(false)))
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.statsLoading.set(false)),
+      )
       .subscribe({
         next: (stats) => this.stats.set(stats),
         error: (error) => this.statsError.set(apiError(error)),
       });
   }
   // Average fill is the arithmetic mean of each managed event's booked/capacity ratio.
-  private loadEvents() {
+  loadEvents() {
+    if (this.eventsLoading()) return;
     this.eventsLoading.set(true);
     this.eventsError.set('');
     this.catalogApi
       .mine()
-      .pipe(finalize(() => this.eventsLoading.set(false)))
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.eventsLoading.set(false)),
+      )
       .subscribe({
         next: (events) => this.events.set(events),
         error: (error) => this.eventsError.set(apiError(error)),

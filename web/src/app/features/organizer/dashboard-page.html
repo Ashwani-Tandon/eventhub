@@ -10,63 +10,71 @@
     Refresh
   </button>
 </section>
-@if (statsLoading()) {
-  <p class="notice" role="status">Loading sales…</p>
-} @else if (statsError()) {
-  <p class="notice error" role="alert">{{ statsError() }}</p>
-}
 <div class="kpi-grid">
   <section class="kpi">
     <p>Revenue</p>
-    <strong>{{
-      statsError() || statsLoading()
-        ? '—'
-        : (stats()?.totals?.revenue ?? 0 | currency: 'INR' : 'symbol' : '1.0-0')
-    }}</strong
-    ><small>Confirmed purchases</small>
+    <app-panel-state
+      [loading]="statsLoading()"
+      [error]="statsError()"
+      (retryRequested)="loadStats()"
+      loadingText="Loading sales…"
+    >
+      <strong>{{ stats()?.totals?.revenue ?? 0 | currency: 'INR' : 'symbol' : '1.0-0' }}</strong
+      ><small>Confirmed purchases</small>
+    </app-panel-state>
   </section>
   <section class="kpi">
     <p>Tickets sold</p>
-    <strong>{{
-      statsError() || statsLoading() ? '—' : (stats()?.totals?.ticketsSold ?? 0 | number)
-    }}</strong
-    ><small>Confirmed tickets</small>
+    <app-panel-state
+      [loading]="statsLoading()"
+      [error]="statsError()"
+      (retryRequested)="loadStats()"
+      loadingText="Loading sales…"
+    >
+      <strong>{{ stats()?.totals?.ticketsSold ?? 0 | number }}</strong
+      ><small>Confirmed tickets</small>
+    </app-panel-state>
   </section>
   <section class="kpi">
     <p>Bookings</p>
-    <strong>{{
-      statsError() || statsLoading() ? '—' : (stats()?.totals?.bookings ?? 0 | number)
-    }}</strong
-    ><small>Including cancelled</small>
+    <app-panel-state
+      [loading]="statsLoading()"
+      [error]="statsError()"
+      (retryRequested)="loadStats()"
+      loadingText="Loading sales…"
+    >
+      <strong>{{ stats()?.totals?.bookings ?? 0 | number }}</strong
+      ><small>Including cancelled</small>
+    </app-panel-state>
   </section>
   <section class="kpi">
     <p>Average fill</p>
-    <strong>{{
-      eventsLoading() || eventsError() ? '—' : (averageFill() | percent: '1.0-1')
-    }}</strong
-    ><small>{{
-      eventsError()
-        ? 'Capacity unavailable'
-        : eventsLoading()
-          ? 'Loading capacity…'
-          : events().length + ' managed events'
-    }}</small>
+    <app-panel-state
+      [loading]="eventsLoading()"
+      [error]="eventsError()"
+      [empty]="!events().length"
+      (retryRequested)="loadEvents()"
+      loadingText="Loading capacity…"
+      emptyText="No managed events yet."
+    >
+      <strong>{{ averageFill() | percent: '1.0-1' }}</strong
+      ><small>{{ events().length }} managed events</small>
+    </app-panel-state>
   </section>
 </div>
-@if (eventsError()) {
-  <p class="notice error" role="alert">Event capacity: {{ eventsError() }}</p>
-}
-@if (!statsLoading() && !statsError() && stats(); as stats) {
-  @if (stats.totals.bookings === 0) {
-    <section class="empty">
-      <h2>No bookings yet</h2>
-      <p>Your sales charts will grow as people book tickets.</p>
-    </section>
-  } @else {
-    <div class="chart-grid">
-      <section class="chart-panel wide">
-        <h2>Revenue by month</h2>
-        <p class="muted">Confirmed sales · last six calendar months · INR</p>
+<div class="chart-grid">
+  <section class="chart-panel wide">
+    <h2>Revenue by month</h2>
+    <p class="muted">Confirmed sales · last six calendar months · INR</p>
+    <app-panel-state
+      [loading]="statsLoading()"
+      [error]="statsError()"
+      [empty]="!stats()?.totals?.bookings"
+      (retryRequested)="loadStats()"
+      loadingText="Loading sales…"
+      emptyText="No booking data yet."
+    >
+      @if (!statsLoading() && !statsError() && stats(); as stats) {
         <div
           echarts
           [options]="monthly()"
@@ -81,36 +89,55 @@
             </span>
           }
         </p>
-      </section>
-      <section class="chart-panel">
-        <h2>Top events</h2>
-        <p class="muted">Ranked by confirmed tickets</p>
-        @if (stats.topEvents.length) {
-          <div
-            echarts
-            [options]="top()"
-            [autoResize]="true"
-            class="chart tall"
-            aria-label="Top ten events by tickets sold"
-          ></div>
-        } @else {
-          <p class="notice">No confirmed sales yet.</p>
-        }
-      </section>
-      <section class="chart-panel">
-        <h2>Booking status</h2>
+      }
+    </app-panel-state>
+  </section>
+  <section class="chart-panel">
+    <h2>Top events</h2>
+    <p class="muted">Ranked by confirmed tickets</p>
+    <app-panel-state
+      [loading]="statsLoading()"
+      [error]="statsError()"
+      [empty]="!stats()?.topEvents?.length"
+      (retryRequested)="loadStats()"
+      loadingText="Loading sales…"
+      emptyText="No booking data yet."
+    >
+      @if (!statsLoading() && !statsError() && stats(); as stats) {
+        <div
+          echarts
+          [options]="top()"
+          [autoResize]="true"
+          class="chart tall"
+          aria-label="Top events chart"
+        ></div>
+      }
+    </app-panel-state>
+  </section>
+  <section class="chart-panel">
+    <h2>Booking status</h2>
+    <p class="muted">Confirmed and cancelled bookings</p>
+    <app-panel-state
+      [loading]="statsLoading()"
+      [error]="statsError()"
+      [empty]="!stats()?.totals?.bookings"
+      (retryRequested)="loadStats()"
+      loadingText="Loading sales…"
+      emptyText="No booking data yet."
+    >
+      @if (!statsLoading() && !statsError() && stats(); as stats) {
         <div
           echarts
           [options]="status()"
           [autoResize]="true"
           class="chart"
-          aria-label="Confirmed and cancelled booking counts"
+          aria-label="Booking status chart"
         ></div>
         <p class="muted small">
           {{ stats.totals.bookings - stats.totals.cancelled }} confirmed ·
           {{ stats.totals.cancelled }} cancelled
         </p>
-      </section>
-    </div>
-  }
-}
+      }
+    </app-panel-state>
+  </section>
+</div>

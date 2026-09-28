@@ -9,11 +9,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime, finalize, Subscription } from 'rxjs';
 import { CatalogApiService } from '../../core/api/catalog-api.service';
 import { CATEGORIES, EventItem } from '../../core/models/event.models';
+import { PanelState } from '../../shared/panel-state';
 import { apiError } from '../../shared/api-error';
 @Component({
   selector: 'app-events-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CurrencyPipe, DatePipe, ReactiveFormsModule, RouterLink, MatButtonModule],
+  imports: [CurrencyPipe, DatePipe, ReactiveFormsModule, RouterLink, MatButtonModule, PanelState],
   templateUrl: './events-page.html',
 })
 export class EventsPage {
