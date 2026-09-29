@@ -858,9 +858,9 @@ timeout and a bulkhead. ⛔ Cannot book, cancel or read stats.
 
 **Implementation**
 
-- [ ] `README.md`: what it is, architecture diagram, Clean Architecture + CQRS overview, Mac setup (Phase 0 summary), run commands, demo users, URLs
+- [x] `README.md`: what it is, architecture diagram, Clean Architecture + CQRS overview, Mac setup (Phase 0 summary), run commands, demo users, URLs
 - [ ] Service/common references complete — at least: microservices, DB per service, gateway, Clean Architecture, CQRS-lite, hand-written mediator, Result pattern, EF migrations, symmetric JWT vs RS256, REST vs pub/sub, compensation vs saga, retryable cancellation, data duplication, token forwarding + internal service credential, idempotency claim, retry/breaker/timeout numbers, agent permissions, local LLM; note gateway rate limiting is deferred to L-2
-- [ ] `DEMO.md` (~8 minutes): role menus → book → forced payment failure → stop Catalog (retries in trace) → circuit opens (fast 503) → My Bookings still works → restart, recovers → dashboard → agent search + book → attendee refused stats → Aspire trace of one booking
+- [x] `DEMO.md` (~8 minutes): role menus → book → forced payment failure → stop Catalog (retries in trace) → circuit opens (fast 503) → My Bookings still works → restart, recovers → dashboard → agent search + book → attendee refused stats → Aspire trace of one booking
 - [ ] Data reset: stop AppHost, remove the SQL volume, restart → seed returns
 - [ ] Final commit, tag `v1.0`
 
@@ -869,11 +869,13 @@ timeout and a bulkhead. ⛔ Cannot book, cancel or read stats.
 **Acceptance criteria**
 
 - [ ] Fresh clone into a new folder runs using only the README
-- [ ] `dotnet build` has 0 warnings; `ng lint` passes
+- [x] `dotnet build` has 0 warnings; `ng lint` passes
 - [ ] 👤 `DEMO.md` runs start to finish twice without errors
 - [ ] 👤 You can explain each documented design choice aloud in under a minute
 
-**Status.** In Progress (Codex, 2026-09-29 — owner authorized demo preparation; all dependencies Completed)
+**Preparation evidence (2026-09-29).** Reviewed Step-10/11 committed as `ae5558e`. Added root README with clone/setup/run commands, diagram, architecture overview, account list and targeted data-reset instructions; added DEMO with timed user journey, resilience caveat, grounded code walkthrough and short design answers. Final `dotnet build EventHub.sln --no-restore` succeeded with 0 warnings/0 errors; Angular production build succeeded (464.15 kB), lint passed. Fresh-folder startup, destructive reset and the two owner rehearsals are not yet proven; release tag remains pending.
+
+**Status.** In Progress (Codex, 2026-09-29 — demo guide prepared; final runtime/rehearsal acceptance pending)
 
 ---
 

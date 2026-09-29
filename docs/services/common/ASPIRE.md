@@ -20,7 +20,7 @@ dotnet run --project src/Aspire/EventHub.AppHost
 | `identity`   | User and token APIs                                       | References/waits for identitydb                       |
 | `catalog`    | Event and seat APIs                                       | References/waits for catalogdb                        |
 | `booking`    | Purchase/cancellation/statistics APIs                     | References/waits for bookingdb and Catalog            |
-| `agent`      | Local assistant with confirmed booking actions                                    | References/waits for Catalog and Booking; no database |
+| `agent`      | Read-only local assistant with UI action proposals                                    | References/waits for Catalog and Booking; no database |
 | `web`        | Angular dev server on 4200                                | Waits for Gateway; runs `npm run start` in `web/`     |
 | `gateway`    | Public entry point on 5100                                | References/waits for all four services                |
 
