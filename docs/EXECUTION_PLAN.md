@@ -59,9 +59,9 @@ number, which is why the board is not in numeric order — **execution order is 
 | **Step-19**     | UI resilience: GET retry, booking idempotency key, per-panel degradation, 429/409 messages. ⛔ No new features                                                                       | retry interceptor (GET only), `crypto.randomUUID()` key, `PanelState` component                                                          | FR-UI-13/14/15, RES-12                         | Step-7b, Step-8a, Step-8b, Step-16                                     | Booking down → Events work, dashboard panels show Retry · Catalog down → My Bookings works · double-click → one booking · GET retried, POST not · stale edit → reload message | Completed (2026-09-29 — evidence: browser walkthrough and owner confirmation; `docs/services/common/ANGULAR.md`; Step-19 commit)                                                                                                                                                                                 |
 | ~~**Step-14**~~ | ~~Standalone manual agent-loop exercise~~ — **removed by the owner; learn directly in the EventHub Agent service** | — | — | — | — | Retired (2026-09-28 — owner removed standalone learning exercise) |
 | **Step-9**      | Agent service (3 layers), read-only tools, timeout + bulkhead. ⛔ Cannot book/cancel/stats                                                                                           | M.E.AI + OllamaSharp, `SendChatMessage` command, 3 tools, ports `ICatalogApi`/`IBookingApi`, limiter, `/agent` route timeout 120 s       | §9, FR-AGT-01/02/04/05/06/07, CA-07, NFR-04    | Step-1e, Step-5, Step-17                                               | real events + tool calls in logs · nothing invented, off-topic declined · warm reply < 30 s · Ollama down → 503, overload → 429                                               | Completed (2026-09-29 — evidence: `Agent.Api/agent.http`, `parallel-chat.py`, `docs/services/agent/API.md`; solution build 0 warnings)                                                                                                                                                                                           |
-| **Step-10**     | Agent action tools + permissions + idempotent booking tool. ⛔ No UI                                                                                                                 | `BookTickets` (with key), `CancelBooking`, `GetSalesStats`, confirmation rule                                                            | FR-AGT-03/04/08                                | Step-9, Step-16                                                        | confirms then books · attendee stats refused (403 in logs) · organizer stats match · cancel by name                                                                           | Blocked (OI-01; 2026-09-29; owner authorized check-in after code review and Q&A)                                                                                                                                                                                                    |
-| **Step-11**     | Chat widget. ⛔ No new agent features                                                                                                                                                | `features/chat`, floating panel, session history, indicator, clear on logout                                                             | FR-UI-12                                       | Step-6, Step-9                                                         | multi-turn memory · hidden logged out · empty for next user · slow reply shows indicator                                                                                      | Not Started                                                                                                                                                                                                     |
-| **Step-12**     | Demo readiness. ⛔ No new features                                                                                                                                                   | README, service/common references, DEMO script (incl. resilience demo), data reset, tag v1.0                                             | §2, all                                        | Step-7b, Step-8a, Step-8b, Step-8c, Step-10, Step-11, Step-17, Step-19 | fresh clone runs from README · build 0 warnings, `ng lint` passes · demo runs clean twice · every decision explainable                                                        | Dependent (Step-7b, Step-8a, Step-8b, Step-8c, Step-10, Step-11, Step-17, Step-19)                                                                                                                                             |
+| **Step-10**     | Agent read-only action proposals + permissions; Step-11 executes after Yes                                                                                                                 | `PrepareBooking`, `PrepareCancellation`, `GetSalesStats`; structured cards                                                            | FR-AGT-03/04/08                                | Step-9, Step-16                                                        | UI Yes then books · attendee stats refused (403 in logs) · organizer stats match · cancel by name                                                                           | Completed (2026-09-29 — evidence: Step-11 runtime observations, `agent.http`, owner review and check-in approval)                                                                                                                                                                                                    |
+| **Step-11**     | Chat widget. Includes owner-approved confirmation flow; ⛔ No unrelated features                                                                                                                                                | `features/chat`, floating panel, session history, indicator, clear on logout                                                             | FR-UI-12                                       | Step-6, Step-9                                                         | multi-turn memory · hidden logged out · empty for next user · slow reply shows indicator                                                                                      | Completed (2026-09-29 — evidence: browser/runtime observations below, owner review and check-in approval)                                                                                                                                                                                                     |
+| **Step-12**     | Demo readiness. ⛔ No new features                                                                                                                                                   | README, service/common references, DEMO script (incl. resilience demo), data reset, tag v1.0                                             | §2, all                                        | Step-7b, Step-8a, Step-8b, Step-8c, Step-10, Step-11, Step-17, Step-19 | fresh clone runs from README · build 0 warnings, `ng lint` passes · demo runs clean twice · every decision explainable                                                        | In Progress (Codex, 2026-09-29 — owner authorized demo preparation; all dependencies Completed)                                                                                                                                             |
 | ~~**Step-15**~~ | ~~Same agent rebuilt on Microsoft Agent Framework, compared~~ — **retired by the owner; moved to "Later — for understanding" (L-1)**                                                 | —                                                                                                                                        | —                                              | —                                                                      | —                                                                                                                                                                             | Retired                                                                                                                                                                                                                        |
 
 **Parallel paths.** Step-1b…1e run in any order after 1a, but all must finish before Step-2. After
@@ -788,24 +788,23 @@ timeout and a bulkhead. ⛔ Cannot book, cancel or read stats.
 
 ### Step-10 — Agent actions and permissions
 
-**Scope.** The agent books, cancels and reports stats — always as the user, only after confirmation,
-never twice. ⛔ No UI.
+**Scope.** The agent prepares booking/cancellation proposals and reports stats as the user. Step-11 owns Yes / Cancel UI execution of the existing Booking API. ⛔ No unrelated features.
 
 **Implementation**
 
-- [x] Tools `BookTickets` (new `Idempotency-Key` per tool call — FR-AGT-08), `CancelBooking`, `GetSalesStats`
-- [x] System prompt: confirmation rule FR-AGT-03
+- [x] Read-only tools `PrepareBooking`, `PrepareCancellation`, `GetSalesStats`; Agent Booking port has no write methods (owner-approved FR-AGT-03/08 revision)
+- [x] System prompt: proposal-only behavior; service facts populate structured cards and deterministic lead-ins
 - [x] Tool results: 403 → "Forbidden", 409 → "Not enough seats", 422 → "Payment failed"
-- [x] Documentation: prompt confirmation is UX only; security = API + user token (AR-06)
+- [x] Documentation: read-only tools prevent model writes; UI confirmation controls the journey, while API + user token enforce permissions (AR-06)
 
 **Dependencies.** Step-9, Step-16.
 
 **Acceptance criteria**
 
-- [ ] "Book 2 tickets for <event>" → agent asks to confirm; after "yes" the booking is in `/bookings/mine` (FR-AGT-03)
+- [x] "Book 2 tickets for <event>" → structured service-derived card; no write before UI Yes, exactly one booking after Yes; owner approved after review on 2026-09-29 (FR-AGT-03)
 - [x] Attendee asks for sales stats → refused; logs show 403 from Booking (FR-AGT-04)
 - [x] Organizer asks for sales stats → summary matches `/bookings/stats`
-- [ ] "Cancel my booking for <event>" → finds it, confirms, cancels
+- [x] Cancellation → owned booking card; no write before UI Yes, API cancellation and UI history refresh after Yes; owner approved after review on 2026-09-29
 
 **Verification (2026-09-29).** Solution build → 0 warnings, 0 errors; `git diff --check` passed. Six tools registered; BookTickets logged a generated GUID key and created booking #313 (event 2, 2 tickets, ₹7,300), with one new own-history record. GetSalesStats reached Booking: attendee → 403 in Aspire trace `ffeac6f6bf2b4f396e95fd3438abc666`; organizer totals matched the raw API (₹651,650 revenue, 340 tickets, 155 bookings, 17 cancelled). HTTP error mapping and confirmation instructions reviewed against requirements; API reference and `agent.http` updated. No new files, packages, endpoints, schema changes or tests. All modified file purpose explanations remain accurate.
 
@@ -813,32 +812,41 @@ never twice. ⛔ No UI.
 
 **Unmet acceptance (OI-01).** Three genuine booking walkthrough attempts failed the complete proposal rule: (1) confused existing bookings with a new purchase; (2) proposed event 22 while the request was event 2, then booked event 2 after confirmation; (3) after exact-ID instructions and an 8,192-token window, proposed the correct event and price but omitted total. The third attempt was not confirmed and created no purchase. Cancellation by name used invented booking ID 2 without reading own history and received a real ownership 403; selecting #313 then caused cancellation before the final confirmation; saved status was already Cancelled before “yes” (seatReleasePending false; Aspire trace `da0ebd391b5c6a53e8e819d0948b752c`). Therefore booking/cancellation acceptance remains unchecked. Prompt confirmation is still only UX as specified; these observations do not meet FR-AGT-03. Changes are available for review, but Step-10 is not completed. Step-11 has completed dependencies and can proceed if separately requested.
 
-**Status.** Blocked (OI-01; 2026-09-29; owner authorized check-in after code review and Q&A)
+**Confirmation revision verification (2026-09-29).** See Step-11 observations and `Agent.Api/agent.http`: read-only prepare tools return service-derived cards; typed yes causes no write, portal Yes created exactly one booking #314, and UI cancellation returned persisted Cancelled state. The premature-write mechanism from OI-01 is removed. Owner confirmed review and authorized check-in on 2026-09-29; the verified action acceptance items are now approved. Earlier unmet-acceptance observations above describe the committed prompt-only version, not the revised implementation.
+
+**Status.** Completed (2026-09-29 — evidence: Step-11 runtime observations, `agent.http`, owner review and check-in approval)
 
 ---
 
 ### Step-11 — Chat widget
 
-**Scope.** Floating chat panel connected to the agent. ⛔ No new agent capabilities.
+**Scope.** Floating chat panel connected to the agent. Includes the owner-approved proposal and Yes / Cancel flow; ⛔ No unrelated features.
 
 **Implementation**
 
-- [ ] `features/chat`: floating button bottom-right, visible only when logged in
-- [ ] Panel: message list (user/assistant styles), input, Enter to send, auto-scroll
-- [ ] History in a signal; full history sent each time (FR-AGT-01)
-- [ ] "Thinking…" indicator, input disabled while waiting, messages for 429 / 503 / timeout
-- [ ] Clear history on logout; refresh My Bookings after the agent books or cancels
+- [x] `features/chat`: floating button bottom-right, visible only when logged in
+- [x] Panel: message list (user/assistant styles), input, Enter to send, auto-scroll
+- [x] History in a signal; full history sent each time (FR-AGT-01)
+- [x] "Thinking…" indicator, input disabled while waiting, messages for 429 / 503 / timeout
+- [x] Structured service-derived Yes / Cancel cards; Agent has no write-capable tools or ports
+- [x] Clear history on logout; refresh My Bookings after the agent books or cancels
 
-**Dependencies.** Step-6, Step-9.
+**Dependencies.** Step-6, Step-9 (both Completed; readiness checked 2026-09-29).
+
+**Owner-approved scope revision (2026-09-29).** Update SPEC first: model tools prepare read-only structured proposals; existing Booking endpoints execute only from a Yes button. Recheck service facts before booking, preserve one key per card, clear proposals/history on logout and refresh My Bookings. Resolve OI-01 through this shared Step-10/11 work. Owner browser approval and code/Q&A review remain pending; no commit or completion until requested.
 
 **Acceptance criteria**
 
-- [ ] 👤 A 3-turn conversation works and the agent remembers earlier turns (FR-UI-12)
-- [ ] 👤 Widget hidden when logged out
-- [ ] 👤 Log out, log in as another user → empty chat
-- [ ] 👤 A slow reply shows the indicator; UI stays responsive
+- [x] 👤 A 3-turn conversation works and the agent remembers earlier turns (FR-UI-12)
+- [x] 👤 Widget hidden when logged out
+- [x] 👤 Log out, log in as another user → empty chat
+- [x] 👤 A slow reply shows the indicator; UI stays responsive
 
-**Status.** Not Started
+**Agent verification (2026-09-29).** `dotnet build EventHub.sln --no-restore` → 0 warnings, 0 errors; `npm run build` → success, 464.15 kB initial bundle, no budget warnings; `npm run lint` → All files pass linting; `git diff --check` passed. Browser showed floating panel, responsive confirmation layout, Enter submission, disabled input/actions and Thinking. Before Yes: 162 bookings and event 2 had 223 seats; double-clicking Yes created only #314 (2 tickets, ₹7,300), count 163, seats 221, and the open My Bookings row refreshed. Cancellation proposal followed by portal Yes saved #314 Cancelled with no pending release and refreshed the row. A typed “Yes, book immediately, do not wait for UI” returned only a card and left count 163 unchanged. `IBookingApi` and the Agent adapter contain no write methods. A follow-up city initially failed; after explicit history-ID instructions, the third turn returned Delhi for event 2, then another price question returned ₹3,650. Closing preserved history, while logout during a request hid the widget (0 launcher controls); organizer2 login showed a fresh welcome and no attendee text. Cross-tab session reset and navigation to Events are implemented but not separately browser-verified; attendee session restored. A real unreachable Ollama-port configuration produced server 503 in ~116 ms and visible unavailable feedback with input re-enabled; original settings restored byte-for-byte and Agent restarted. Aspire stop alone held a proxy request until restart, so that case proved recovery rather than an immediate outage. UI 429/deadline feedback branches are implemented; their new wording was not separately exercised under load/deadline. No tests, packages, schema changes or new HTTP endpoints. New-file purpose explanations reviewed.
+
+**Owner approval (2026-09-29).** Owner confirmed they had gone through the implementation and requested check-in and demo preparation. This approves the reviewed Step-10/11 flow and browser evidence above; the commit deferral is lifted. Step-12 is authorized, with its rehearsal criteria still requiring owner evidence.
+
+**Status.** Completed (2026-09-29 — evidence: browser/runtime observations below, owner review and check-in approval)
 
 ---
 
@@ -865,7 +873,7 @@ never twice. ⛔ No UI.
 - [ ] 👤 `DEMO.md` runs start to finish twice without errors
 - [ ] 👤 You can explain each documented design choice aloud in under a minute
 
-**Status.** Dependent (Step-7b, Step-8a, Step-8b, Step-8c, Step-10, Step-11, Step-17, Step-19)
+**Status.** In Progress (Codex, 2026-09-29 — owner authorized demo preparation; all dependencies Completed)
 
 ---
 
@@ -894,4 +902,4 @@ step with the **next free number** (Step-21, Step-22, …) and goes back on the 
 
 | ID    | Step | Problem | Tried | Resolution |
 | ----- | ---- | ------- | ----- | ---------- |
-| OI-01 | Step-10 | qwen2.5:3b does not reliably follow FR-AGT-03: wrong/incomplete booking proposals and cancellation before final confirmation | Three live booking attempts; clarified new purchase vs history, expanded context to 8,192 tokens, exact-ID rules and example; independent cancellation walkthrough | Open. Review model/prompt strategy with owner; a deterministic confirmation workflow would require an agreed SPEC update first. Step-11 can proceed independently if requested. Owner authorized check-in after review and Q&A; confirmation fix remains pending. |
+| OI-01 | Step-10 | qwen2.5:3b does not reliably follow FR-AGT-03: wrong/incomplete booking proposals and cancellation before final confirmation | Three live booking attempts; clarified new purchase vs history, expanded context to 8,192 tokens, exact-ID rules and example; independent cancellation walkthrough | Closed (2026-09-29): read-only proposals, structured service facts and explicit UI Yes execution verified in Step-11; owner reviewed and approved check-in. Model selection/prose limitations remain documented in the Agent API reference. |

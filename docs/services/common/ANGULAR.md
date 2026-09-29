@@ -218,3 +218,49 @@ created booking #310 for two tickets: history grew from 158 to 159 bookings and 
 Two editor tabs for event #37 produced PUT/200 then PUT/409 with the reload message; reloading
 and saving restored the original description. These are agent observations; the plan's marked
 owner browser criteria, including the network-tab 503 check, remain pending owner review.
+
+
+## Chat panel and explicit action confirmation (Step-11)
+
+The portal shell owns `features/chat/chat-widget`: a floating bottom-right button appears only for a
+signed-in user and opens a panel on the current page. No new route is needed. Closing preserves local
+history across page navigation; refresh starts empty. Clear starts a new conversation. Every send includes
+full user/assistant text, bounded to leave room within the Agent's 30-message limit. Enter sends and
+Shift+Enter inserts a newline; composing text with an input method is not accidentally submitted.
+
+History, busy state, error and the current card are signals. A render effect scrolls the transcript after
+Angular paints new content. Model text is interpolated, never inserted as HTML. The panel is nonmodal:
+the user can keep using the portal while the local model thinks. Escape closes it and focus returns to
+the launcher. A reduced-motion setting disables the animated thinking dot; mobile sizes keep the composer
+and buttons within the viewport.
+
+`AgentApiService` POSTs to `/api/agent/chat` without retry. The 125-second browser timeout allows the
+server's 120-second budget plus transport time. 429 shows busy feedback; 503/connection failures show
+unavailable feedback; 504/client deadline shows a timeout. The input is read-only while waiting and Send
+and action buttons are disabled, avoiding double submissions. A failed chat keeps the earlier history
+and tells the user to send again explicitly; there is no background resend.
+
+Agent now returns an optional structured `action` prepared from Catalog/Booking records. The panel
+renders kind, event title/ID, UTC date, quantity, unit price and total. Cancellation also shows booking ID.
+The card does not parse model prose. The backend tools can only read/prepare; a typed yes, dismiss or
+panel close never submits a Booking write. Yes calls the existing BookingApiService as the signed-in user.
+Before the first purchase, Catalog facts are reread. A changed title/price/date updates the card and needs
+another Yes; insufficient seats/started-event stops submission. Booking still validates current facts and
+calculates its own final total. There is no atomic price lock across the preview and Booking's later read.
+
+One UUID belongs to each booking card. The same key and payload are preserved for explicit retries after
+an uncertain outcome, allowing Booking to return a saved purchase rather than buying twice. Definitive
+400/404/422 responses reset that attempt. The UI advises checking My Bookings after write failures;
+dismissing an uncertain card does not undo a possibly completed purchase. Successful actions and uncertain
+failures increment BookingApiService.historyRevision; an open My Bookings page observes it and rereads
+persisted snapshots, including pending seat-release state. Other feature flows keep their own existing reload behavior.
+
+AuthService.sessionVersion changes on login/logout, including a same-user re-login. Its effect clears chat,
+proposal, input and errors, closes the panel and unsubscribes in-flight browser work. A submitted server
+operation may still finish; the next session can inspect its own saved bookings. Profile verification
+updates do not erase history. Storage events also synchronize login/logout across portal tabs and clear the previous identity before restoring new claims. Other tabs return to Events so cached protected pages cannot retain the previous user’s records. No chat is saved in localStorage or shared with the next user.
+
+See the [Agent reference](../agent/API.md) for the C# tool loop and read-only boundary. The owner-approved
+revision resolves the original premature-action problem by removing write tools, not merely changing prompts.
+Language-model prose/selection may still be inaccurate; actual action cards and saved success messages use
+service facts. Steps 10/11 remain pending owner browser approval, code review and Q&A; commits are deferred.

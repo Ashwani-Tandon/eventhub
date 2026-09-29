@@ -53,7 +53,7 @@ public sealed class OllamaChatClient(IChatClient client, EventHubTools tools, Co
                 MaxOutputTokens = 512,
                 // Bind only these named methods, not every method discovered by reflection. Tools belong to this request's user.
                 Tools = [AIFunctionFactory.Create(tools.SearchEvents), AIFunctionFactory.Create(tools.GetEventDetails), AIFunctionFactory.Create(tools.GetMyBookings),
-                    AIFunctionFactory.Create(tools.BookTickets), AIFunctionFactory.Create(tools.CancelBooking),
+                    AIFunctionFactory.Create(tools.PrepareBooking), AIFunctionFactory.Create(tools.PrepareCancellation),
                     AIFunctionFactory.Create(tools.GetSalesStats)]
             };
             // Six tool schemas plus confirmation history need more space than Ollama's default 4096-token window.
@@ -61,6 +61,14 @@ public sealed class OllamaChatClient(IChatClient client, EventHubTools tools, Co
             chatOptions.AddOllamaOption(OllamaOption.NumCtx, 8192);
             // No retry wrapper: function invocation makes follow-up model turns, which are continuation, not retries.
             var response = await client.GetResponseAsync(history, chatOptions, deadline.Token);
+            // The confirmation card and its lead-in come from service facts, even if model prose claims it already acted.
+            if (tools.Proposal is { } proposal)
+            {
+                var prompt = proposal.Kind == ProposalKinds.Book
+                    ? "Review this booking proposal. Nothing has been booked. Click Yes to book, or Cancel to dismiss."
+                    : "Review this cancellation proposal. Nothing has been cancelled. Click Yes to cancel the booking, or Cancel to dismiss.";
+                return Result<ChatReply>.Success(new ChatReply(prompt, proposal));
+            }
             var reply = response.Messages.LastOrDefault(x => x.Role == ChatRole.Assistant)?.Text;
             return string.IsNullOrWhiteSpace(reply)
                 ? Result<ChatReply>.Failure(AgentErrors.Offline)

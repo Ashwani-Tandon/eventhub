@@ -1,4 +1,4 @@
-// Implements event reads and confirmed booking actions that Ollama may request during a conversation.
+// Implements event reads and read-only booking proposals that Ollama may request during a conversation.
 // Descriptions become the tool menu; each method calls a service port and returns compact JSON or a short error.
 using System.ComponentModel;
 using System.Text.Json;
@@ -10,6 +10,10 @@ namespace Agent.Application.Tools;
 
 public sealed class EventHubTools(ICatalogApi catalog, IBookingApi booking, ILogger<EventHubTools> logger)
 {
+    // This instance belongs to one request. Keep at most one proposal so several tool calls cannot swap the card.
+    public ActionProposal? Proposal { get; private set; }
+
+    private const string CancelledStatus = "Cancelled";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private static readonly Action<ILogger, string, string, Exception?> LogTool = LoggerMessage.Define<string, string>(
         LogLevel.Information, new EventId(9001, nameof(LogTool)), "Agent tool {ToolName} arguments {Arguments}");
@@ -70,26 +74,41 @@ public sealed class EventHubTools(ICatalogApi catalog, IBookingApi booking, ILog
         }, Json);
     }
 
-    /// <summary>Creates one key per invocation; transport retries reuse it, while a new purchase gets a new key.</summary>
-    [Description("Book tickets ONLY after stating the real event title, quantity and total INR and receiving a subsequent user confirmation. Never call to ask for confirmation. Returns the saved booking; never repeat this tool after success or an uncertain outcome.")]
-    public async Task<string> BookTickets(
-        [Description("Real event ID obtained from event tools and confirmed by the user.")] int eventId,
-        [Description("User-confirmed ticket quantity, between 1 and 10.")] int quantity,
+    /// <summary>Fetches the real event and calculates a preview; it never reserves, pays or creates a booking.</summary>
+    [Description("Prepare a booking confirmation card, without booking anything. Call when the user asks to book tickets. Use the exact event ID and requested quantity; the UI will ask Yes / Cancel and handle execution.")]
+    public async Task<string> PrepareBooking(
+        [Description("Exact event ID supplied by the user or found through SearchEvents.")] int eventId,
+        [Description("Requested ticket quantity between 1 and 10; ask the user if quantity is missing.")] int quantity,
         CancellationToken cancellationToken = default)
     {
-        var idempotencyKey = Guid.NewGuid().ToString();
-        LogTool(logger, nameof(BookTickets), JsonSerializer.Serialize(new { eventId, quantity, idempotencyKey }, Json), null);
-        return Serialize(await booking.BookAsync(eventId, quantity, idempotencyKey, cancellationToken));
+        LogTool(logger, nameof(PrepareBooking), JsonSerializer.Serialize(new { eventId, quantity }, Json), null);
+        if (Proposal is not null) return "One confirmation card is already prepared. Stop and let the user review it.";
+        if (quantity is < 1 or > 10) return "Quantity must be between 1 and 10";
+        var result = await catalog.GetAsync(eventId, cancellationToken);
+        if (result.IsFailure) return Serialize(result);
+        var item = result.Value;
+        Proposal = new(ProposalKinds.Book, item.Id, null, item.Title, item.StartsAt,
+            quantity, item.Price, item.Price * quantity);
+        return JsonSerializer.Serialize(new { proposal = Proposal, instruction = "Nothing booked. Review the UI card and click Yes to submit." }, Json);
     }
 
-    /// <summary>Uses the ID of a distinct owned booking; Booking checks ownership and returns its cancellation state.</summary>
-    [Description("Cancel a booking ONLY after fetching GetMyBookings, stating its event title, quantity and total INR and receiving a subsequent user confirmation. If multiple bookings match, ask which booking ID first. Never invent IDs or cancel all matches.")]
-    public async Task<string> CancelBooking(
-        [Description("The specific booking ID from GetMyBookings that the user confirmed for cancellation.")] int bookingId,
+    /// <summary>Looks up the full caller-owned history, rejecting invented/other-user IDs before making a cancellation card.</summary>
+    [Description("Prepare a cancellation confirmation card without cancelling anything. Use a booking ID from GetMyBookings or explicitly supplied by the user. If multiple purchases match an event name, ask which ID. The UI will handle Yes / Cancel.")]
+    public async Task<string> PrepareCancellation(
+        [Description("The specific owned booking ID selected by the user, not an event ID.")] int bookingId,
         CancellationToken cancellationToken = default)
     {
-        LogTool(logger, nameof(CancelBooking), JsonSerializer.Serialize(new { bookingId }, Json), null);
-        return Serialize(await booking.CancelAsync(bookingId, cancellationToken));
+        LogTool(logger, nameof(PrepareCancellation), JsonSerializer.Serialize(new { bookingId }, Json), null);
+        if (Proposal is not null) return "One confirmation card is already prepared. Stop and let the user review it.";
+        var result = await booking.GetMineAsync(cancellationToken);
+        if (result.IsFailure) return Serialize(result);
+        // The API scopes this list to the JWT's owner. Search all returned records, not only the model's recent page.
+        var item = result.Value.FirstOrDefault(x => x.Id == bookingId);
+        if (item is null) return "Not found in your bookings. Use a booking ID from My Bookings.";
+        if (item.Status == CancelledStatus && !item.SeatReleasePending) return "This booking is already cancelled";
+        Proposal = new(ProposalKinds.Cancel, item.EventId, item.Id, item.EventTitle, item.EventStartsAt,
+            item.Quantity, item.Total / item.Quantity, item.Total);
+        return JsonSerializer.Serialize(new { proposal = Proposal, instruction = "Nothing cancelled. Review the UI card and click Yes to submit." }, Json);
     }
 
     /// <summary>Gets authorized sales facts; an attendee's request reaches Booking and receives its actual 403.</summary>

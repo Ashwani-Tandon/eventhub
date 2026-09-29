@@ -1,11 +1,16 @@
 // This adapter is the single browser boundary for Booking requests and statistics.
 // It sends no price or user identity on purchase; the server supplies trusted values.
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Booking, BookingStatus, SalesStats } from '../models/booking.models';
 @Injectable({ providedIn: 'root' })
 export class BookingApiService {
   private readonly http = inject(HttpClient);
+  readonly historyRevision = signal(0);
+  // Notify an open history page after any purchase, cancellation, or uncertain write outcome.
+  refreshHistory() {
+    this.historyRevision.update((revision) => revision + 1);
+  }
   private readonly base = '/api/booking/bookings';
   // Submit one purchase; automatic write retries are deliberately absent.
   book(eventId: number, quantity: number, simulatePaymentFailure: boolean, idempotencyKey: string) {

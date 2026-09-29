@@ -1,6 +1,14 @@
 // This page shows the caller's booking snapshots and repeatable cancellation.
 // Pending seat returns remain visible so users can finish cancellation after recovery.
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -31,7 +39,10 @@ export class BookingsPage {
   readonly cancelling = signal<number | null>(null);
   // Read only Booking; the history screen does not depend on Catalog.
   constructor() {
-    this.load();
+    effect(() => {
+      this.api.historyRevision();
+      untracked(() => this.load());
+    });
   }
   // Refresh after mutations so pending release flags match durable server state.
   load() {

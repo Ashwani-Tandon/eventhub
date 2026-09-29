@@ -1,0 +1,145 @@
+<!-- The assistant stays in the portal, with messages followed by a service-derived confirmation card.
+     Yes submits the displayed action; Cancel only dismisses it, and plain text is never treated as executable markup. -->
+@if (auth.currentUser()) {
+  @if (opened()) {
+    <section
+      class="chat-panel"
+      tabindex="-1"
+      aria-label="EventHub assistant"
+      (keydown.escape)="toggle()"
+    >
+      <header class="chat-header">
+        <div>
+          <span class="eyebrow">EVENTHUB</span>
+          <h2>Your event assistant</h2>
+        </div>
+        <div class="header-actions">
+          <button mat-button (click)="clear()" [disabled]="busy() !== null">Clear</button
+          ><button mat-button aria-label="Close chat" (click)="toggle()">Close</button>
+        </div>
+      </header>
+      <div class="transcript" #transcript role="log" aria-live="polite" aria-label="Chat messages">
+        @if (messages().length === 0) {
+          <div class="welcome">
+            <span class="welcome-mark">e.</span>
+            <h3>Find your next experience.</h3>
+            <p>
+              Ask about events, your bookings, or sales. You review every booking and cancellation
+              before it happens.
+            </p>
+            <button
+              mat-stroked-button
+              (click)="draft.setValue('Music events under ₹1000?'); send()"
+              [disabled]="busy() !== null"
+            >
+              Music events under ₹1,000?
+            </button>
+          </div>
+        }
+        @for (message of messages(); track $index) {
+          <article class="message" [class.user]="message.role === 'user'">
+            <span class="message-author">{{ message.role === 'user' ? 'You' : 'EventHub' }}</span>
+            <p>{{ message.content }}</p>
+          </article>
+        }
+        @if (card(); as pending) {
+          <article class="confirmation" aria-label="Action confirmation">
+            <span class="eyebrow">{{
+              pending.proposal.kind === 'book' ? 'BOOKING PROPOSAL' : 'CANCELLATION PROPOSAL'
+            }}</span>
+            <h3>{{ pending.proposal.eventTitle }}</h3>
+            <p>{{ pending.proposal.eventStartsAt | date: 'medium' : 'UTC' }} UTC</p>
+            <dl>
+              <div>
+                <dt>Event</dt>
+                <dd>#{{ pending.proposal.eventId }}</dd>
+              </div>
+              @if (pending.proposal.bookingId) {
+                <div>
+                  <dt>Booking</dt>
+                  <dd>#{{ pending.proposal.bookingId }}</dd>
+                </div>
+              }
+              <div>
+                <dt>Tickets</dt>
+                <dd>{{ pending.proposal.quantity }}</dd>
+              </div>
+              <div>
+                <dt>Price each</dt>
+                <dd>{{ pending.proposal.unitPrice | currency: 'INR' }}</dd>
+              </div>
+              <div class="total">
+                <dt>{{ pending.proposal.kind === 'book' ? 'Total to pay' : 'Purchase total' }}</dt>
+                <dd>{{ pending.proposal.total | currency: 'INR' }}</dd>
+              </div>
+            </dl>
+            <p class="card-note">
+              {{
+                pending.submitted
+                  ? 'An earlier request was submitted. Check My Bookings before retrying.'
+                  : 'Nothing has been submitted. Please check these details.'
+              }}
+            </p>
+            <div class="card-actions">
+              <button mat-flat-button (click)="confirm()" [disabled]="busy() !== null">
+                {{
+                  pending.submitted
+                    ? 'Yes, retry request'
+                    : pending.proposal.kind === 'book'
+                      ? 'Yes, book tickets'
+                      : 'Yes, cancel booking'
+                }}</button
+              ><button mat-button (click)="dismiss()" [disabled]="busy() !== null">Cancel</button>
+            </div>
+          </article>
+        }
+        @if (busy()) {
+          <p class="thinking" role="status">
+            <span class="pulse"></span
+            >{{ busy() === 'chat' ? 'Thinking…' : 'Checking and submitting…' }}
+          </p>
+        }
+        @if (error()) {
+          <p class="chat-error" role="alert">{{ error() }}</p>
+        }
+      </div>
+      <div class="composer">
+        <label for="chat-message">Your message</label>
+        <div class="input-row">
+          <textarea
+            #input
+            id="chat-message"
+            [formControl]="draft"
+            rows="2"
+            maxlength="4000"
+            placeholder="Ask about an event…"
+            [readOnly]="busy() !== null"
+            (keydown)="onKeydown($event)"
+          ></textarea
+          ><button
+            mat-flat-button
+            (click)="send()"
+            [disabled]="busy() !== null || !draft.value.trim() || draft.invalid"
+          >
+            Send
+          </button>
+        </div>
+        <small
+          >Messages never submit bookings or cancellations. Use the Yes button.<br />
+          Enter to send · Shift+Enter for a new line ·
+          <a routerLink="/my-bookings">My Bookings</a></small
+        >
+      </div>
+    </section>
+  }
+  <button
+    #launcher
+    class="chat-launcher"
+    mat-flat-button
+    (click)="toggle()"
+    [attr.aria-expanded]="opened()"
+    aria-label="Toggle EventHub assistant"
+  >
+    {{ opened() ? 'Close assistant' : 'Ask EventHub' }} <span aria-hidden="true">✦</span>
+  </button>
+}

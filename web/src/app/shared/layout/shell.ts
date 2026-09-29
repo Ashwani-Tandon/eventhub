@@ -3,6 +3,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { ChatWidget } from '../../features/chat/chat-widget';
 import { AuthService } from '../../core/auth/auth.service';
 import { Role, ROLES } from '../../core/models/auth.models';
 interface MenuItem {
@@ -13,7 +14,7 @@ interface MenuItem {
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, MatButtonModule],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, MatButtonModule, ChatWidget],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
 })

@@ -229,10 +229,11 @@ token**), sends the result back, and repeats until the LLM gives a final answer
 | `SearchEvents(search?, category?, city?, maxPrice?, from?, to?)` | `GET /events`                | Step-9         |
 | `GetEventDetails(eventId)`                                       | `GET /events/{id}`           | Step-9         |
 | `GetMyBookings()`                                                | `GET /bookings/mine`         | Step-9         |
-| `BookTickets(eventId, quantity)`                                 | `POST /bookings`             | Step-10        |
-| `CancelBooking(bookingId)`                                       | `POST /bookings/{id}/cancel` | Step-10        |
+| `PrepareBooking(eventId, quantity)`                                 | `GET /events/{id}` (proposal only)             | Step-10        |
+| `PrepareCancellation(bookingId)`                                       | `GET /bookings/mine` (proposal only) | Step-10        |
 | `GetSalesStats()`                                                | `GET /bookings/stats`        | Step-10        |
 
+Booking/cancellation tools prepare cards only. The chat UI calls the existing Booking write endpoints after Yes.
 Tool results are compact JSON (only the fields the model needs). Errors are returned as short text
 (`"Forbidden"`, `"Not enough seats"`, `"Payment failed"`) so the model can explain them.
 
@@ -240,17 +241,16 @@ Tool results are compact JSON (only the fields the model needs). Errors are retu
 
 | ID        | Requirement                                                                                                                                                                                                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| FR-AGT-01 | `POST /chat` (logged in) receives the full message history `{ messages: [{ role: "user"                                                                                                                                                                                               | "assistant", content }] }`and returns`{ reply }`. The service keeps no conversation state. |
+| FR-AGT-01 | `POST /chat` receives full user/assistant text history and returns `{ reply, action? }`. The optional structured action is prepared from service facts, never parsed from model prose. The Agent keeps no conversation state or pending-action database. |
 | FR-AGT-02 | System prompt: EventHub assistant; answers only from tool data, never invents events, prices or bookings; knows today's date; currency INR; stays on EventHub topics and politely declines others.                                                                                    |
-| FR-AGT-03 | Before `BookTickets` or `CancelBooking`, the assistant states event, quantity and total and waits for the user to confirm.                                                                                                                                                            |
+| FR-AGT-03 | Chat tools can only prepare booking/cancellation proposals; they cannot execute writes, even after typed confirmation. The logged-in floating chat panel displays service-derived event title, quantity and total with Yes / Cancel. Only clicking Yes calls the existing Booking API as the user. A newer message or logout discards the pending card. Booking details are rechecked before submission; changed price/title requires a refreshed card and another Yes. |
 | FR-AGT-04 | All tool calls carry the user's JWT. A 403 from a downstream service is reported to the user as "you don't have permission".                                                                                                                                                          |
 | FR-AGT-05 | Every tool call and its arguments are visible in the logs / Aspire dashboard.                                                                                                                                                                                                         |
 | FR-AGT-06 | Model name and Ollama endpoint come from configuration (`Ollama:Model`, `Ollama:Endpoint`). Temperature 0.2.                                                                                                                                                                          |
-| FR-AGT-07 | LLM calls have a 120 s timeout and are **never retried automatically** — a retried chat could run a booking tool twice. At most 2 LLM calls run at once (queue 5); beyond that → 429 "The assistant is busy, try again shortly". Ollama unreachable → 503 "The assistant is offline". |
-| FR-AGT-08 | `BookTickets` sends an `Idempotency-Key` (one new key per tool call), so a retried tool HTTP call cannot book twice.                                                                                                                                                                  |
+| FR-AGT-07 | LLM calls have a 120 s timeout and are **never retried automatically** — a retried chat can produce duplicate/conflicting proposals. At most 2 LLM calls run at once (queue 5); beyond that → 429 "The assistant is busy, try again shortly". Ollama unreachable → 503 "The assistant is offline". |
+| FR-AGT-08 | The UI creates one `Idempotency-Key` per booking confirmation card and reuses it for an explicit retry of that same purchase. Double-clicks are disabled; chat and write requests have no automatic browser retry. After an uncertain write result, preserve the key and tell the user to check My Bookings. |
 
-**Security note:** FR-AGT-03 is a user-experience guard only. The real protection is FR-AGT-04 + AR-05/06 —
-the APIs enforce permissions no matter what the model decides.
+**Security note:** The tool allowlist and read-only Agent ports prevent model-triggered writes. UI confirmation controls the normal user journey; Booking still enforces authentication, ownership, quantities and idempotency (FR-AGT-04 + AR-05/06). A caller can already use Booking directly; a confirmation card grants no extra privilege.
 
 ## 10. Frontend (Angular)
 
@@ -323,7 +323,8 @@ Booking ──(RES-01 pipeline: timeout → retry → circuit breaker)──► 
    │                                                                           (RES-06 idempotent reserve/release,
    └─(RES-05 DB retry)──► bookingdb                                             RES-07 optimistic concurrency)
 Agent ──(FR-AGT-07 timeout + bulkhead, NO retry)──► Ollama
-Agent ──(RES-01 pipeline, FR-AGT-08 idempotency key)──► Catalog / Booking
+Agent ──(RES-01 pipeline, read-only tools)──► Catalog / Booking
+Chat UI Yes ──(FR-AGT-08 idempotency key, no automatic retry)──► Booking
 ```
 
 ### 14.2 Requirements

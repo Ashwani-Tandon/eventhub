@@ -1,6 +1,6 @@
 // AuthService owns the browser session and exposes signals to menus and guards.
 // JWT decoding restores display claims; only the backend verifies their signature.
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 import { tap } from 'rxjs';
@@ -22,6 +22,8 @@ interface Claims extends JwtPayload {
 export class AuthService {
   private readonly api = inject(IdentityApiService);
   private readonly router = inject(Router);
+  // Every login/logout creates a new chat session, even when the same user returns immediately.
+  readonly sessionVersion = signal(0);
   private readonly userState = signal<User | null>(null);
   readonly currentUser = this.userState.asReadonly();
   readonly role = computed(() => this.currentUser()?.role ?? null);
@@ -29,6 +31,23 @@ export class AuthService {
   // Restore claims immediately so guards work on a direct URL after refresh.
   constructor() {
     this.restore();
+    // Browser storage events notify other portal tabs; account changes must clear their chat history too.
+    const onStorage = (event: StorageEvent) => this.syncSession(event);
+    window.addEventListener('storage', onStorage);
+    inject(DestroyRef).onDestroy(() => window.removeEventListener('storage', onStorage));
+  }
+  // Adopt login/logout from another tab, clearing the old user's visible state before reading new claims.
+  private syncSession(event: StorageEvent) {
+    if (event.storageArea !== localStorage || (event.key !== TOKEN_KEY && event.key !== null))
+      return;
+    if (this.expiryTimer) clearTimeout(this.expiryTimer);
+    this.expiryTimer = undefined;
+    this.userState.set(null);
+    this.sessionVersion.update((version) => version + 1);
+    this.restore();
+    // Leave cached protected screens when another tab changes identity; their old user's records must not stay visible.
+    void this.router.navigate(['/events']);
+    this.verifyRestoredSession();
   }
   // Read storage for each API call, including when the owner replaces a token manually.
   token() {
@@ -44,6 +63,7 @@ export class AuthService {
   }
   // Remove both persisted and visible identity so menus cannot retain the old role.
   logout() {
+    this.sessionVersion.update((version) => version + 1);
     if (this.expiryTimer) clearTimeout(this.expiryTimer);
     this.expiryTimer = undefined;
     localStorage.removeItem(TOKEN_KEY);
@@ -82,6 +102,7 @@ export class AuthService {
   }
   // Only accept a usable JWT and schedule sign-out using its expiry claim.
   private accept(response: LoginResponse) {
+    this.sessionVersion.update((version) => version + 1);
     localStorage.setItem(TOKEN_KEY, response.accessToken);
     this.restore();
   }

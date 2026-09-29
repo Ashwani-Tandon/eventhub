@@ -1,216 +1,170 @@
-# Agent service — events, bookings and sales assistant
+# Agent service — events, proposals and sales
 
-Agent turns a signed-in user's question into an answer grounded in Catalog and Booking data.
-This reference explains its API, tool loop, permissions and failure handling so the implementation can be studied alongside the code.
+Agent answers signed-in users from Catalog and Booking facts and prepares confirmation cards.
+This reference explains the endpoint, tool loop and the boundary between a model suggestion and a user-submitted action.
 
-## What is implemented
+## API and access
 
-The service has Application, Infrastructure and Api projects. It owns no database or Domain project.
-`qwen2.5:3b`, already installed in Ollama for this 8 GB machine, supplies language understanding and answer writing.
-We are integrating a pretrained model, not training one or inserting records into its permanent knowledge.
+`POST /agent/chat` through Gateway is `POST /chat` inside Agent. Any authenticated EventHub user may call it.
+Agent validates the JWT itself. It has no database, Domain project, internal Booking credential or special privileges.
+Development `/agent/health` and `/agent/alive` report hosting health; they do not guarantee Ollama is online.
+The Angular proxy uses `/api/agent/chat`.
 
-| Endpoint | Access | Result |
-| --- | --- | --- |
-| `POST /agent/chat` through Gateway (`POST /chat` inside Agent) | Any authenticated EventHub user | `200 { "reply": "..." }`, or the errors below |
-| `/agent/health`, `/agent/alive` | Public, Development only | Shared readiness and liveness checks; no database check and no guarantee that Ollama is online |
+```json
+{"messages":[{"role":"user","content":"Book 2 tickets for event ID 2."}]}
+```
 
-Steps 9 and 10 expose event reads, confirmed booking/cancellation and permission-scoped sales. The Angular chat widget belongs to Step 11.
-The actual entry point is Gateway at `http://localhost:5100`; the future widget will use Angular's `/api/agent/chat` proxy path.
+The endpoint's `[FromBody]` reads this JSON. `[FromServices] ISender` comes from dependency injection.
+`CancellationToken` is supplied by ASP.NET Core on disconnect; it is not client input or a DI service.
+The mediator runs Logging → Validation → Performance → SendChatMessage handler.
+The handler checks identity and calls the Application-owned `IAgentChatClient` port.
 
-## Request and response
-
-Postman: select POST, enter `http://localhost:5100/agent/chat`, set Authorization to Bearer Token using Identity's `accessToken`, and send JSON under Body → raw:
+A normal answer is `{ "reply": "...", "action": null }`. A prepared purchase returns:
 
 ```json
 {
-  "messages": [
-    { "role": "user", "content": "Music events under ₹1000?" }
-  ]
+  "reply": "Review this booking proposal. Nothing has been booked. Click Yes to book, or Cancel to dismiss.",
+  "action": {
+    "kind": "book", "eventId": 2, "bookingId": null,
+    "eventTitle": "Cloud Summit 2", "eventStartsAt": "2026-10-12T12:00:00+00:00",
+    "quantity": 2, "unitPrice": 3650, "total": 7300
+  }
 }
 ```
 
-The endpoint marks this JSON explicitly `[FromBody]`. `ISender` is `[FromServices]` dependency injection.
-`CancellationToken` is supplied by ASP.NET Core when the request disconnects; it is not a JSON field, header or dependency the caller supplies.
+This example is illustrative: actual facts come from the services. Cancellation uses `kind: "cancel"`
+and includes the owned booking ID and its purchase snapshot. No reservation/payment references are exposed.
+The action is built by C# tools, not extracted from model prose. When a tool prepares a card, the adapter
+also supplies a fixed truthful lead-in, preventing model text such as “already booked” from replacing the preview.
+At most one proposal is kept per request; a second prepare call cannot overwrite it.
 
-A successful response contains only the final natural-language text:
+Every turn supplies full prior user/assistant text. The Agent keeps no conversation state.
+Validation rejects empty history, more than 30 messages, null entries, non-user/assistant roles,
+a last message not from the user, empty content, content over 4,000 characters, or combined text over 32,000.
+The client cannot submit system or tool messages. Validation produces 400 ProblemDetails before model work.
 
-```json
-{ "reply": "Jazz Evening 16 is free and has 223 seats available." }
-```
-
-That is an illustrative response, not a fixed answer: availability, events and wording can change.
-Every subsequent request includes all earlier user/assistant messages plus the new user message. The service stores no history.
-The client sends text, not tool-call objects. The Agent creates fresh system instructions and obtains current tool data on each request.
-
-Validation runs before model work through our mediator and FluentValidation:
-
-- `messages` must exist and contain at least one message: `'Messages' must not be empty.`
-- At most 30 messages: `Send at most 30 messages.`
-- Entries cannot be null: `Messages cannot be null.`
-- Roles are exactly `user` or `assistant`: `Role must be user or assistant.` Clients cannot replace system instructions or fabricate tool results.
-- The final message must be a user message: `The last message must be from the user.`
-- Each `content` is nonempty and at most 4,000 characters; combined text is at most 32,000 characters: `Conversation text must not exceed 32000 characters.`
-
-These bounds keep accidental huge histories from overwhelming the local model. They limit text characters, not token counts: a token is a small piece of text used by the model internally.
-Malformed JSON and invalid types also receive HTTP 400 from ASP.NET Core.
-
-| Status | Meaning / body detail |
+| HTTP status | Meaning |
 | --- | --- |
-| 200 | Final answer, including a readable explanation if a tool reports no matches or a downstream failure |
-| 400 | `Validation.Failed` ProblemDetails with field messages; the model is not called |
-| 401 | Missing, invalid or expired bearer token; authentication stops the request before the endpoint |
-| 429 | `Agent.Busy`: `The assistant is busy, try again shortly`; `Retry-After: 5` |
-| 503 | `Agent.Offline`: `The assistant is offline`; connection/model-service failure, malformed model JSON, no final text, or whole-chat timeout; `Retry-After: 5` |
+| 200 | Final text and optional structured proposal; downstream tool failures may be explained in this text |
+| 400 | Invalid history or malformed JSON; validator field messages appear in ProblemDetails |
+| 401 | Missing, expired or invalid JWT; no model work |
+| 429 | `Agent.Busy`, “The assistant is busy, try again shortly”, `Retry-After: 5` |
+| 503 | `Agent.Offline`, “The assistant is offline”, `Retry-After: 5`; model outage, invalid model JSON, no final text or whole-chat deadline |
 
-Unexpected programming errors still go through the shared exception handler as 500; expected network failures are translated.
-A 503 is deliberately a simple user message; model connection/timeout information goes into logs without JWTs.
+Gateway can return 504 at its own deadline before Agent's 503 arrives. Unexpected programming errors use
+shared 500 handling. Expected network faults and tool HTTP rejections become Results.
 
-## Follow one question through the code
+## Tool menu and service boundaries
 
-1. Gateway removes `/agent` and forwards the body and bearer token to Agent.
-2. Agent validates the JWT itself. `AgentEndpoints` sends `SendChatMessageCommand` through Logging → Validation → Performance → handler.
-3. The handler checks caller identity and calls the Application-owned `IAgentChatClient` port. `OllamaChatClient` implements it in Infrastructure.
-4. The adapter starts a 120-second budget and acquires a shared concurrency permit. It builds a system message, including today's UTC date from `TimeProvider`, then appends the submitted history.
-5. It supplies six named functions to Microsoft.Extensions.AI. `[Description]` attributes become descriptions of the methods and arguments in the JSON tool menu sent to Ollama.
-6. Ollama may return a function request such as `SearchEvents` with `category: "Music"` and `maxPrice: 1000`. This is a request to our program, not direct database access by the model.
-7. `UseFunctionInvocation()` runs the corresponding C# method. `EventHubTools` logs the name and arguments, calls its port, and returns compact JSON or a short error.
-8. The HTTP adapter resolves Catalog/Booking through Aspire service discovery and forwards the original user's JWT. The downstream API checks that user's permission and reads its own database.
-9. The function-invocation layer adds the tool result to the current conversation and asks Ollama to continue. It may request another tool or write the final answer.
-10. Only the final assistant text becomes `{ reply }`; the permit is released on success, failure or cancellation.
-
-These follow-up model calls are conversation continuation, not automatic retries of a failed chat.
-The loop allows at most eight model iterations, with serial tool execution inside each request. This caps accidental repeated tool calls; the total deadline still applies.
-Ollama receives tool facts in the current request context. Its installed weights are not changed by these HTTP calls.
-
-## Message roles and library responsibilities
-
-| Role | Who creates it | Purpose |
+| Tool | Inputs | Actual service call / behavior |
 | --- | --- | --- |
-| System | Agent | Grounding rules, supported scope, INR currency, current date |
-| User | Caller | The question or follow-up |
-| Assistant | Model, or caller's prior history | Earlier answers; submitted history is not verified business data |
-| Tool | Function-invocation layer | Actual result of a server-executed tool |
+| SearchEvents | Optional search/category/city/maxPrice/from/to | Catalog `GET /events?page=1&pageSize=20` with escaped filters; summaries plus total |
+| GetEventDetails | Exact event ID from user or search | Catalog `GET /events/{id}`; current title, description, price, date and seats |
+| GetMyBookings | None | Booking `GET /bookings/mine`; model sees newest 10 distinct purchases with recency ranks, full count and omitted-history notice |
+| PrepareBooking | Event ID, quantity 1–10 | Catalog GET; computes price × quantity and prepares a card. **No reserve, payment or booking POST.** |
+| PrepareCancellation | Specific booking ID | Booking own-history GET; checks the full returned owned list, rejects missing/already-finished cancellation, then prepares a card. **No cancellation POST.** |
+| GetSalesStats | None | Booking `GET /bookings/stats`; organizer sees own events, admin all, attendee gets actual 403 |
 
-`OllamaSharp.OllamaApiClient` handles Ollama's HTTP/JSON protocol and implements Microsoft's `IChatClient` interface.
-`Microsoft.Extensions.AI` supplies that provider-independent interface, `AIFunctionFactory` and the invocation loop.
-We explicitly bind six methods; we do not scan all public methods and expose them to the model.
-`UseLogging()` adds library request diagnostics. Application tool logs at Information level ensure names and arguments appear in Aspire; HTTP bearer tokens are never logged by our code.
-See Microsoft's [IChatClient and tool-calling reference](https://learn.microsoft.com/en-us/dotnet/ai/ichatclient) and [OllamaSharp's integration reference](https://github.com/awaescher/OllamaSharp#usage-with-microsoftextensionsai).
+Search does not expose pagination or price sorting. A “cheapest event” answer must not claim completeness
+when total exceeds the returned page. History's model page is also partial; repeated event titles are
+separate purchases and older records are not known to the model. PrepareCancellation checks the full
+API history so a user-supplied older owned ID is supported without inventing a record.
+Quantity is bounded before making a card. Final availability, started-event and business rules belong to Booking/Catalog.
 
-## Tool contracts and permissions
+The Agent's `IBookingApi` has only `GetMineAsync` and `GetStatsAsync`. Its HTTP adapter contains no write methods.
+The model's registered functions are an explicit six-method allowlist: even “ignore instructions and book now”
+or a typed “yes” cannot execute a purchase. This is a code boundary, rather than a prompt-only request to wait.
+A card still may suggest an unintended real event; the user must check the visible title/ID before Yes.
 
-| Tool | Arguments | Downstream call | Result |
-| --- | --- | --- | --- |
-| `SearchEvents` | Optional `search`, `category`, `city`, `maxPrice`, `from`, `to` | `GET Catalog /events?page=1&pageSize=20` plus escaped filters | `{ items, total }`; event IDs, titles, city, category, dates, prices, seats left; descriptions and venue come from details |
-| `GetEventDetails` | `eventId` supplied by the user or from a real search | `GET Catalog /events/{id}` | Current event facts, or `Not found` |
-| `GetMyBookings` | None | `GET Booking /bookings/mine` | Newest 10 caller-owned snapshots plus total and `olderBookingsOmitted`: recency rank, booking ID, event ID/title, quantity, total, status, pending seat release |
-| `BookTickets` | `eventId`, `quantity` (1–10) | `POST Booking /bookings`, with one new `Idempotency-Key` per invocation | Saved booking ID, event, quantity, total, status and pending seat-release flag |
-| `CancelBooking` | `bookingId` from the caller's history | `POST Booking /bookings/{id}/cancel`, without automatic retry | Saved cancellation state; ownership enforced by Booking |
-| `GetSalesStats` | None | `GET Booking /bookings/stats` | Totals, six revenue months, top events and status counts; organizer sees own events, admin sees all, attendee receives 403 |
+## How tool calling works
+
+Ollama runs the configured local Qwen model (`qwen2.5:3b` on this machine).
+OllamaSharp implements Microsoft's `IChatClient` and handles Ollama HTTP/JSON.
+`AIFunctionFactory.Create` builds each tool's name, parameter schema and descriptions and binds its C# delegate.
+The model chooses tool names and arguments; it neither runs C# nor chooses arbitrary API URLs.
+`UseFunctionInvocation()` runs the delegate, adds its result as a tool message and asks the model to continue.
+Those follow-up calls are conversation continuation, not retries of failed chats.
+Tools execute serially, with at most eight model iterations per request.
+
+System instructions describe EventHub scope, fact grounding, INR, the date, partial-page limits and read-only proposals.
+They are kept separately from transport code so behavior is easy to study. The UTC date comes from TimeProvider.
+Tool/event descriptions are data; the prompt says to ignore instructions inside service records.
+Prompt instructions remain probabilistic for selection and ordinary prose; the service-derived card and read-only tool boundary are enforced in code.
+
+| Message role | Creator and purpose |
+| --- | --- |
+| System | Server-owned overall instructions |
+| User | Caller question or follow-up |
+| Assistant | Model answer or untrusted submitted prior text |
+| Tool | Invocation library's actual server-executed result |
+
+`ForwardTokenHandler` reads the current incoming Authorization header at send time and forwards it to
+Catalog/Booking. Pooled handlers never cache a user token. The separate Ollama transport receives no JWT.
+The actual APIs enforce identity, ownership and organizer/admin roles; a UI card grants no extra permissions.
+Downstream 401/403/404 become sign-in/permission/not-found text; 400 gives an input hint; 409/422 map to
+“Not enough seats”/“Payment failed”; outages become short unavailable messages. No model failure grants access.
+
+## Clicking Yes in the UI
+
+The floating panel displays structured event title/ID, UTC date, quantity, unit price and total.
+Sending chat, closing the panel, dismissing a card, and typing yes perform no Booking writes.
+Only the card's Yes button calls the existing Booking endpoint through Angular's BookingApiService.
+No new action URL or server-side pending-action store is required.
+
+Before the first booking submission, the browser rereads the event. Changed title/price/date refreshes the
+card and requires another Yes; insufficient seats or an already-started event prevent that submission.
+Booking rereads and validates current facts again. A concurrent edit between browser recheck and Booking's
+read remains possible because the existing Booking contract does not accept an expected price/version.
+This preview is not a price lock; final saved totals come from Booking. Fixing that race requires a separate contract change.
+Cancellation uses the displayed owned booking ID; Booking enforces ownership and retryable seat release.
+
+One UUID key belongs to each booking card. Double-clicks are blocked during submission, and explicit retry
+of an uncertain purchase keeps that key/payload so Booking can return the already-made booking.
+A definitive 400/404/422 rejection resets the attempt; an uncertain outcome says to check My Bookings first.
+Never automatically resend a chat or write. Logout cancels browser subscriptions, clears history/cards and
+hides the widget; an already-submitted server operation may still finish and be visible in My Bookings.
+Successful mutations and uncertain failures notify the open My Bookings page to reload persisted state.
+
+## Resilience and local inspection
+
+Ollama Endpoint, Model and TimeoutSeconds come from validated Options; timeout is 120 seconds.
+Temperature is 0.2, output is capped at 512 tokens, and `AddOllamaOption(NumCtx, 8192)` supplies an
+8,192-token temporary context window for instructions, tool schemas, history and tool results. This uses
+additional model memory and does not train the model. Bounded pages/history still matter.
+Strict JSON settings cannot contain comments; their purpose is local nonsecret model/hosting configuration.
+
+A shared limiter allows two chats, five queued in oldest-first order, then immediate 429.
+The 120-second budget includes queue, tools and model turns. Caller cancellation travels through the stack.
+Service GETs use total timeout 10 s, up to three retries, circuit breaker and 2 s attempt timeout.
+Ollama has no retry handler. Gateway's Agent route has 120-second total/activity timeouts.
+The browser waits 125 seconds before displaying a timeout message, with no retry.
+
+Start Ollama and AppHost. Use `agent.http`, the floating panel, and Aspire `Agent tool` logs/HTTP traces.
+For a deliberate experiment, request a purchase and dismiss its card: booking count and seats should not change.
+The original Step-10 prompt-only version created #313 then prematurely cancelled it. That observation is
+recorded in OI-01 and explains the owner-approved switch to proposals and explicit UI execution.
 
 
-`search` means title/description text, while `category` means Music, Tech, Sports, Comedy or Workshop.
-A category-only search must not add the category word as a text filter; doing so would omit events whose edited title and description do not contain that word.
-Dates use ISO 8601 with a timezone; no `from` means Catalog's upcoming-event default. Prices use invariant formatting in URLs and INR in answers.
-At most 20 matches are returned; `total` describes all matches. Pagination beyond that first page is not exposed as a tool in Step 9.
-Booking retrieves the caller’s history through its existing endpoint, then the tool sends only the newest 10 records to Ollama with the full count and `olderBookingsOmitted`. The demo user has 161 bookings; sending all 161 overwhelmed the default 4,096-token context and hit the deadline. Twenty records also led to incorrect latest-record selection. The final ten-record page includes explicit `recencyRank` and `bookingId` fields; event dates can be obtained with `GetEventDetails`. This is a deliberate local-model trade-off: the assistant must say when an older record is outside the available page. Search summaries likewise omit long descriptions; use details for one event.
-No organizer IDs, user IDs, payment references, reservation IDs or event row versions are sent as tool facts.
+## Revised-flow observations — 2026-09-29
 
-The model does not supply a user ID or bearer token. `ForwardTokenHandler` reads the current HTTP request when sending each tool call; it does not cache the identity in the pooled HTTP handler.
-The Ollama transport is separate and does not receive the user's JWT. The Agent has no Booking internal service credential and no access to any service database.
-A tool's downstream 403 becomes `Forbidden: you don't have permission`; 401 becomes `Please sign in again`; 404 becomes `Not found`; 400 becomes a short input-validation hint; 409 becomes `Not enough seats`; 422 becomes `Payment failed`; outages become short readable errors.
-The model can explain those errors in a 200 chat answer; it must not invent missing data.
+The live portal rendered an event-2 card for two tickets at ₹3,650 each, ₹7,300 total. Before Yes,
+there were 162 own bookings and 223 seats. A double-click on Yes created one #314, count 163 and
+221 seats; the open history page refreshed. A cancellation proposal and portal Yes later returned
+#314 Cancelled with seatReleasePending false and refreshed its history row. Agent traces for proposal
+preparation used Booking GETs. A chat message explicitly asking to book immediately with typed yes
+returned only a card; saved count remained 163.
 
-The system prompt tells the model to obtain facts through tools, treat event descriptions as data, and decline unrelated requests.
-This is a language-model instruction, not a deterministic security boundary or a guarantee against every hallucination. Actual access control is the six-tool allowlist plus JWT checks in each API.
+The first cancellation follow-up produced misleading “Cancelled” prose without invoking a prepare
+tool; persisted #314 was still Confirmed and no card/write occurred. More explicit tool instructions
+then produced the proper owned card. Similarly, a follow-up asking the city initially failed to fetch
+facts; after the history-ID instruction was clarified, the next turn correctly fetched Delhi for event 2.
+These observations show that model prose/selection can still be wrong. The read-only boundary prevents
+such text from executing an action; the UI's fixed note explains that messages never submit actions.
+Service-derived cards and API-derived success messages remain the authority for actual operations.
 
-## Resilience and configuration
-
-`Ollama:Endpoint`, `Ollama:Model` and `Ollama:TimeoutSeconds` are in Agent's `appsettings.json`; environment variables may override them.
-Endpoint must be an absolute HTTP(S) URL, model must be present, and timeout is validated as 120 seconds. Temperature is 0.2, each model answer is limited to 512 output tokens, and the adapter uses Ollama’s `num_ctx` option for an 8,192-token conversation window. Six tool schemas and confirmation history need more room than the earlier default 4,096-token window; this uses additional temporary model memory.
-JSON has no comment syntax, so this reference supplies its purpose explanation: it contains local nonsecret model/hosting settings; JWT secrets still come from Aspire.
-
-A singleton `ConcurrencyLimiter` is shared across users: two whole chat workflows can run, five may queue in oldest-first order, and excess requests receive 429.
-The budget includes queue time, model turns and tool calls. Client cancellation also cancels queued/running work; the acquired permit is disposed in all cases.
-Serial invocation within one chat prevents concurrent access to that request's tool context; separate permitted chats still run concurrently.
-This is a limit for this Agent instance, not a distributed limit across multiple servers.
-
-Catalog and Booking clients use `AddEventHubResilience`: total timeout 10 s, up to three retries with backoff/jitter, circuit breaker and 2 s attempt timeout, from shared configuration.
-Ollama uses a separate transport with no retry pipeline. Repeating a whole chat automatically could repeat action tools; manual retry is the caller's choice.
-The Gateway Agent route has a 120-second total timeout and a 120-second activity timeout, backed by ASP.NET Core request-timeout middleware. Other routes have no newly added timeout policy.
-Both Agent and Gateway start their budgets independently; at the deadline the Gateway can return 504 before Agent's 503 arrives. See [YARP timeout documentation](https://learn.microsoft.com/aspnet/core/fundamentals/servers/yarp/timeouts).
-
-## Running and inspecting it
-
-Start Ollama, then `dotnet run --project src/Aspire/EventHub.AppHost`. Send [agent.http](../../../src/Services/Agent/Agent.Api/agent.http) requests through Gateway.
-In Aspire select Agent console/structured logs and search for `Agent tool`. Each log shows the selected function and its arguments; HTTP traces show Catalog/Booking as separate service calls.
-Run `python3 src/Services/Agent/Agent.Api/parallel-chat.py` to send eight real chats at once and inspect 200/429 outcomes without printing tokens.
-For an outage experiment, stop Ollama, send a chat, observe 503 `The assistant is offline`, then restart Ollama and repeat manually.
-
-## Runtime observations — 2026-09-29
-
-Real Gateway requests and Aspire logs proved these behaviors using the persisted development data:
-
-- `SearchEvents` logged `{ "search": null, "category": "Music", "city": null, "maxPrice": 1000, "from": null, "to": null }`. Catalog and the answer both contained Jazz Evening 16 at ₹0 with 223 seats, and Admin verified event at ₹100 with 0 seats. Warm search completed in 9.02 seconds in an earlier pass and 11.42 seconds on the final build.
-- A nonexistent Purple Moon Unicorn Festival search returned no matches; the assistant reported not found. A poem request was declined.
-- `GetEventDetails` logged `{ "eventId": 2 }`; the answer matched Cloud Summit 2 at ₹3,650, 223 seats, and October 12 at 12:00 UTC.
-- `GetMyBookings` logged `{}` and Booking returned 200 for the caller. The underlying Booking data contains distinct purchases #312 (1 ticket), #311 (1), and #310 (2), all Confirmed. Explicit rank labels in the final tool projection distinguish their ordering from repeated event titles; the final answer reproduced all three correctly in 21.05 seconds without unsupported claims about other records.
-- A follow-up with submitted user/assistant history fetched event ID 2’s current ₹3,650 price through `GetEventDetails` in 5.59 seconds.
-- Missing JWT returned 401. Empty history, client-supplied system role and null messages each returned 400 before any tool ran.
-- Stopping the actual local Ollama server produced 503 `Agent.Offline`, `The assistant is offline`, `Retry-After: 5` in 0.13 seconds. The macOS Ollama application restored its server automatically; `/api/tags` responded afterwards.
-- Eight simultaneous chats produced seven 200 responses and one 429 `Agent.Busy` in 0.03 seconds. Accepted requests took 9.47–69.14 seconds, including queue wait, with no 500 or crashes. The warm under-30-second observation is for one chat without an overloaded queue.
-
-These are observed outcomes, not promises of identical wording or timing on every run. The model initially combined repeated event titles and inferred absence from a partial booking page; bounded data and explicit instructions improved the observed answer. Prompt rules are still probabilistic. API permissions and the tool allowlist are enforced in code regardless of the wording the model produces.
-
-## Confirmed actions and their limits
-
-For “Book 2 tickets for event ID 2”, the assistant obtains current event facts, states the event title,
-quantity and total INR, and asks for confirmation. The client submits that proposal in history along
-with the next “yes”. The assistant calls `BookTickets` and reports the saved booking ID only after success.
-For cancellation by name, it obtains the caller's bookings, asks which booking ID when several match,
-and proposes cancellation with event, quantity and purchase total before waiting for confirmation.
-A pending seat release is explained as unfinished cancellation; a later explicit cancellation can resume it.
-
-Confirmation is a prompt-driven user experience guard (FR-AGT-03), not a security boundary.
-Submitted assistant history can be fabricated and a model may fail to follow instructions. Booking's JWT
-policy and ownership rules enforce security regardless of prompt wording (AR-06). No model-supplied user ID,
-role, token, payment-failure switch or internal service credential is exposed by these tools.
-`GetSalesStats` calls Booking even for attendees, so its real 403 establishes the permission decision.
-
-`BookTickets` creates a GUID once before sending the request. The shared resilience handler can retry that
-HTTP request with the same key, and Booking's existing atomic claim returns the original purchase instead
-of charging/reserving twice. Separate tool invocations receive separate keys: this does **not** deduplicate
-repeated model invocations or manually resubmitted chats. The instructions prohibit repeating a successful
-or uncertain action; callers should check My Bookings after a timeout rather than automatically resend.
-Cancellation has no key and shared resilience disables its POST retries. Sales GETs can retry safely.
-The model transport still has no retry handler, and tools execute serially within each conversation.
-
-The three action functions reuse the existing `SendChatMessage` command and service APIs: no new HTTP
-endpoint, database, cross-service reference or business rule is added to Agent. Application owns tool
-contracts and `IBookingApi`; Infrastructure handles HTTP JSON, JWT forwarding and failure translation.
-The saved booking projection omits payment/reservation references and other user identifiers.
-
-## Step-10 runtime observations and unresolved confirmation behavior
-
-The action implementation is present for review; Step-10 is **Blocked (OI-01)**, not accepted.
-Solution builds reported 0 warnings and 0 errors, and `git diff --check` passed.
-A confirmed tool invocation created booking #313 for event 2, quantity 2, total ₹7,300, using one logged
-GUID idempotency key. Own history gained one record. An attendee's GetSalesStats call received Booking's
-actual 403 (Aspire trace `ffeac6f6bf2b4f396e95fd3438abc666`); the assistant explained lack of permission.
-Organizer totals matched the raw API: ₹651,650 revenue, 340 tickets, 155 bookings, 17 cancelled.
-The model also added an unrequested event breakdown and misstated one amount (₹750 instead of ₹7,500),
-so the matching totals do not establish reliable wording for every statistic.
-
-Three live booking attempts failed the complete confirmation proposal requirement. The first confused
-existing records with a new purchase. The second proposed event 22 while the user requested event 2,
-then correctly purchased event 2 after “yes”. After explicit exact-ID rules and an 8,192-token window,
-the third proposal gave the correct event and ₹3,650 unit price but omitted the ₹7,300 total; no purchase
-confirmation was sent. Cancellation by name invented booking ID 2 without GetMyBookings and received a real ownership 403
-(trace `e51413d7b1c7cfa6f51fcfbdff519795`). Selecting booking #313 then invoked CancelBooking **before**
-the final “yes” (trace `da0ebd391b5c6a53e8e819d0948b752c`). The database already showed Cancelled, with no
-pending seat release, before that confirmation. The final response confirmed an already completed action.
-
-These are observed model failures, not API authorization failures. Prompt instructions alone have not
-met FR-AGT-03. A different model/prompt strategy can be reviewed; adding a deterministic action-confirmation
-workflow needs an agreed specification change first. The existing tool implementation must not be treated
-as an accepted confirmation flow. The owner initially deferred commits for code review and Q&A, then authorized checking in this implementation with the blocker documented. The agreed next direction is a UI confirmation card with service-derived facts and execution only on Yes; direct model action execution must be removed as part of that change. The specification and Step-10/11 scope must be updated before implementing that flow.
+Logout during a chat hid the panel and removed its controls; organizer2 started with an empty welcome.
+A temporary unreachable local Ollama endpoint caused real 503 in about 116 ms; the panel showed
+unavailable feedback and enabled input again. Original configuration was restored and Agent restarted.
+Stopping an Aspire resource alone held the proxy request until restart rather than failing immediately.
+Backend build reported 0 warnings/errors; production Angular build and lint passed. Owner browser
+approval, code review/Q&A and step completion remain pending; no changes have been committed.
