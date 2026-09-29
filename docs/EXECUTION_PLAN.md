@@ -58,9 +58,9 @@ number, which is why the board is not in numeric order — **execution order is 
 | **Step-8c**     | Admin: users + roles, all bookings. ⛔ No agent                                                                                                                                      | users table + role dropdown, bookings table + filter                                                                                     | FR-UI-11, FR-ID-05                             | Step-3, Step-5, Step-6                                                 | promote attendee2 → organizer after re-login · old rights before re-login · non-admin blocked                                                                                 | Completed (2026-09-28 — evidence: owner browser approval, `web/`, `docs/services/common/ANGULAR.md`, production build/lint and solution build) |
 | **Step-19**     | UI resilience: GET retry, booking idempotency key, per-panel degradation, 429/409 messages. ⛔ No new features                                                                       | retry interceptor (GET only), `crypto.randomUUID()` key, `PanelState` component                                                          | FR-UI-13/14/15, RES-12                         | Step-7b, Step-8a, Step-8b, Step-16                                     | Booking down → Events work, dashboard panels show Retry · Catalog down → My Bookings works · double-click → one booking · GET retried, POST not · stale edit → reload message | Completed (2026-09-29 — evidence: browser walkthrough and owner confirmation; `docs/services/common/ANGULAR.md`; Step-19 commit)                                                                                                                                                                                 |
 | ~~**Step-14**~~ | ~~Standalone manual agent-loop exercise~~ — **removed by the owner; learn directly in the EventHub Agent service** | — | — | — | — | Retired (2026-09-28 — owner removed standalone learning exercise) |
-| **Step-9**      | Agent service (3 layers), read-only tools, timeout + bulkhead. ⛔ Cannot book/cancel/stats                                                                                           | M.E.AI + OllamaSharp, `SendChatMessage` command, 3 tools, ports `ICatalogApi`/`IBookingApi`, limiter, `/agent` route timeout 120 s       | §9, FR-AGT-01/02/04/05/06/07, CA-07, NFR-04    | Step-1e, Step-5, Step-17                                               | real events + tool calls in logs · nothing invented, off-topic declined · warm reply < 30 s · Ollama down → 503, overload → 429                                               | Not Started                                                                                                                                                                                           |
-| **Step-10**     | Agent action tools + permissions + idempotent booking tool. ⛔ No UI                                                                                                                 | `BookTickets` (with key), `CancelBooking`, `GetSalesStats`, confirmation rule                                                            | FR-AGT-03/04/08                                | Step-9, Step-16                                                        | confirms then books · attendee stats refused (403 in logs) · organizer stats match · cancel by name                                                                           | Dependent (Step-9, Step-16)                                                                                                                                                                                                    |
-| **Step-11**     | Chat widget. ⛔ No new agent features                                                                                                                                                | `features/chat`, floating panel, session history, indicator, clear on logout                                                             | FR-UI-12                                       | Step-6, Step-9                                                         | multi-turn memory · hidden logged out · empty for next user · slow reply shows indicator                                                                                      | Dependent (Step-6, Step-9)                                                                                                                                                                                                     |
+| **Step-9**      | Agent service (3 layers), read-only tools, timeout + bulkhead. ⛔ Cannot book/cancel/stats                                                                                           | M.E.AI + OllamaSharp, `SendChatMessage` command, 3 tools, ports `ICatalogApi`/`IBookingApi`, limiter, `/agent` route timeout 120 s       | §9, FR-AGT-01/02/04/05/06/07, CA-07, NFR-04    | Step-1e, Step-5, Step-17                                               | real events + tool calls in logs · nothing invented, off-topic declined · warm reply < 30 s · Ollama down → 503, overload → 429                                               | Completed (2026-09-29 — evidence: `Agent.Api/agent.http`, `parallel-chat.py`, `docs/services/agent/API.md`; solution build 0 warnings)                                                                                                                                                                                           |
+| **Step-10**     | Agent action tools + permissions + idempotent booking tool. ⛔ No UI                                                                                                                 | `BookTickets` (with key), `CancelBooking`, `GetSalesStats`, confirmation rule                                                            | FR-AGT-03/04/08                                | Step-9, Step-16                                                        | confirms then books · attendee stats refused (403 in logs) · organizer stats match · cancel by name                                                                           | Not Started                                                                                                                                                                                                    |
+| **Step-11**     | Chat widget. ⛔ No new agent features                                                                                                                                                | `features/chat`, floating panel, session history, indicator, clear on logout                                                             | FR-UI-12                                       | Step-6, Step-9                                                         | multi-turn memory · hidden logged out · empty for next user · slow reply shows indicator                                                                                      | Not Started                                                                                                                                                                                                     |
 | **Step-12**     | Demo readiness. ⛔ No new features                                                                                                                                                   | README, service/common references, DEMO script (incl. resilience demo), data reset, tag v1.0                                             | §2, all                                        | Step-7b, Step-8a, Step-8b, Step-8c, Step-10, Step-11, Step-17, Step-19 | fresh clone runs from README · build 0 warnings, `ng lint` passes · demo runs clean twice · every decision explainable                                                        | Dependent (Step-7b, Step-8a, Step-8b, Step-8c, Step-10, Step-11, Step-17, Step-19)                                                                                                                                             |
 | ~~**Step-15**~~ | ~~Same agent rebuilt on Microsoft Agent Framework, compared~~ — **retired by the owner; moved to "Later — for understanding" (L-1)**                                                 | —                                                                                                                                        | —                                              | —                                                                      | —                                                                                                                                                                             | Retired                                                                                                                                                                                                                        |
 
@@ -75,7 +75,7 @@ remain in the "Later — for understanding" list at the end.
 
 ---
 
-**Owner-approved batch (2026-09-27):** Build Step-6 through Step-8c in one pass, then review screens together. Implementation may proceed while earlier 👤 acceptance checks remain pending; this does not mark those checks done. Owner review was confirmed on 2026-09-28 and the owner requested the current batch be committed. Steps 6–8c are Completed. Step-19 was subsequently completed and approved by the owner on 2026-09-29; Step-9 is the next execution boundary.
+**Owner-approved batch (2026-09-27):** Build Step-6 through Step-8c in one pass, then review screens together. Implementation may proceed while earlier 👤 acceptance checks remain pending; this does not mark those checks done. Owner review was confirmed on 2026-09-28 and the owner requested the current batch be committed. Steps 6–8c are Completed. Step-19 was subsequently completed and approved by the owner on 2026-09-29; Step-9 was completed on 2026-09-29; Step-10 is the next execution boundary, and Step-11 is also ready once requested.
 
 ## Rules that apply to every step
 
@@ -762,25 +762,27 @@ timeout and a bulkhead. ⛔ Cannot book, cancel or read stats.
 
 **Implementation**
 
-- [ ] **Agent.Application:** command `SendChatMessage` (history in, reply out); `EventHubTools` with `[Description]` on methods and parameters; ports `ICatalogApi`, `IBookingApi`; system prompt (FR-AGT-02) as a constant with the date from `TimeProvider`
-- [ ] **Agent.Infrastructure:** `AddChatClient(new OllamaApiClient(...)).UseFunctionInvocation().UseLogging()`; `OllamaOptions` (Endpoint, Model, Timeout = 120 s) validated at start; HTTP adapters for the ports with `ForwardTokenHandler` + `AddEventHubResilience()`
-- [ ] Bulkhead: `ConcurrencyLimiter` (2 permits, queue 5) around the LLM call → `Error` → 429 when rejected; Ollama unreachable → 503 "assistant offline"; **no retry** on the chat call (FR-AGT-07)
-- [ ] Compact JSON tool results; errors as short text
-- [ ] **Agent.Api:** `POST /chat`, `.RequireAuthorization()`
-- [ ] Gateway: `/agent` route timeout 120 s (YARP route `Timeout`), so slow model answers are not cut off (NFR-04)
-- [ ] `agent.http`: login + 5 questions + a parallel-requests script
-- [ ] `docs/services/agent/API.md`: explain how a chat request flows through the layers; the model → tool request → execution → tool result → answer loop; what `UseFunctionInvocation()` handles; the system/user/assistant/tool message roles; where the user's token travels; and a real logged tool-call example. Keep learning explanations beside the application code and in this service reference.
+- [x] **Agent.Application:** command `SendChatMessage` (history in, reply out); `EventHubTools` with `[Description]` on methods and parameters; ports `ICatalogApi`, `IBookingApi`; system prompt (FR-AGT-02) as a constant with the date from `TimeProvider`
+- [x] **Agent.Infrastructure:** `AddChatClient(new OllamaApiClient(...)).UseFunctionInvocation().UseLogging()`; `OllamaOptions` (Endpoint, Model, Timeout = 120 s) validated at start; HTTP adapters for the ports with `ForwardTokenHandler` + `AddEventHubResilience()`
+- [x] Bulkhead: `ConcurrencyLimiter` (2 permits, queue 5) around the LLM call → `Error` → 429 when rejected; Ollama unreachable → 503 "assistant offline"; **no retry** on the chat call (FR-AGT-07)
+- [x] Compact JSON tool results; errors as short text
+- [x] **Agent.Api:** `POST /chat`, `.RequireAuthorization()`
+- [x] Gateway: `/agent` route timeout 120 s (YARP route `Timeout`), so slow model answers are not cut off (NFR-04)
+- [x] `agent.http`: login + 5 questions + a parallel-requests script
+- [x] `docs/services/agent/API.md`: explain how a chat request flows through the layers; the model → tool request → execution → tool result → answer loop; what `UseFunctionInvocation()` handles; the system/user/assistant/tool message roles; where the user's token travels; and a real logged tool-call example. Keep learning explanations beside the application code and in this service reference.
 
 **Dependencies.** Step-1e, Step-5, Step-17.
 
 **Acceptance criteria**
 
-- [ ] "Music events under ₹1000?" → events that exist, correct prices; Aspire logs show `SearchEvents` and its arguments (FR-AGT-05)
-- [ ] Made-up event → "not found"; "write me a poem" → politely declined (FR-AGT-02)
-- [ ] Warm reply in under 30 s (NFR-04)
-- [ ] Ollama stopped → 503 "assistant offline"; 8 parallel requests → some 429 "busy", none crash (FR-AGT-07)
+- [x] "Music events under ₹1000?" → events that exist, correct prices; Aspire logs show `SearchEvents` and its arguments (FR-AGT-05)
+- [x] Made-up event → "not found"; "write me a poem" → politely declined (FR-AGT-02)
+- [x] Warm reply in under 30 s (NFR-04)
+- [x] Ollama stopped → 503 "assistant offline"; 8 parallel requests → some 429 "busy", none crash (FR-AGT-07)
 
-**Status.** Not Started
+**Verification (2026-09-29).** `dotnet build EventHub.sln --no-restore` → 0 warnings, 0 errors; `git diff --check` passed. Real Gateway chats and Aspire logs showed SearchEvents with Music/maxPrice=1000 and both matching persisted events at ₹0/₹100; final warm reply 11.42 s. Made-up event → no matches; poem declined. Details for ID 2 matched ₹3,650 and 223 seats; caller bookings #312/#311/#310 returned as separate purchases after adding recency ranks and bounding the model page to 10. Stateless history follow-up fetched the current event price in 5.59 s. Invalid history → 400; missing JWT → 401. Actual Ollama stop → 503 Agent.Offline with Retry-After 5 in 0.13 s; Ollama restored. Eight simultaneous real chats → seven 200 and one 429 Agent.Busy in 0.03 s, no crashes; accepted queued chats took up to 69.14 s. Token forwarding, limits and the small-model partial-page/wording trade-offs are documented in the Agent reference; no chat retry, action tools, widget, tests or new database. New-file purpose explanations reviewed.
+
+**Status.** Completed (2026-09-29 — evidence: `Agent.Api/agent.http`, `parallel-chat.py`, `docs/services/agent/API.md`; solution build 0 warnings)
 
 ---
 
@@ -805,7 +807,7 @@ never twice. ⛔ No UI.
 - [ ] Organizer asks for sales stats → summary matches `/bookings/stats`
 - [ ] "Cancel my booking for <event>" → finds it, confirms, cancels
 
-**Status.** Dependent (Step-9, Step-16)
+**Status.** Not Started
 
 ---
 
@@ -830,7 +832,7 @@ never twice. ⛔ No UI.
 - [ ] 👤 Log out, log in as another user → empty chat
 - [ ] 👤 A slow reply shows the indicator; UI stays responsive
 
-**Status.** Dependent (Step-6, Step-9)
+**Status.** Not Started
 
 ---
 

@@ -20,7 +20,7 @@ dotnet run --project src/Aspire/EventHub.AppHost
 | `identity`   | User and token APIs                                       | References/waits for identitydb                       |
 | `catalog`    | Event and seat APIs                                       | References/waits for catalogdb                        |
 | `booking`    | Purchase/cancellation/statistics APIs                     | References/waits for bookingdb and Catalog            |
-| `agent`      | Current Agent scaffold                                    | References/waits for Catalog and Booking; no database |
+| `agent`      | Read-only local assistant                                    | References/waits for Catalog and Booking; no database |
 | `web`        | Angular dev server on 4200                                | Waits for Gateway; runs `npm run start` in `web/`     |
 | `gateway`    | Public entry point on 5100                                | References/waits for all four services                |
 
@@ -64,10 +64,10 @@ These are local development server logs; registration does not automatically add
 
 Use AppHost user-secrets / Aspire parameters for values; never commit credentials to JSON or documentation.
 Environment double underscores represent configuration nesting. Database references provide each service its own connection string, not permission to query another service's database.
-Service ports are dynamically assigned; read them from the dashboard rather than hard-coding them. Gateway stays on 5100. Ollama uses 11434 but is not started by the current AppHost; the owner must run it before future Agent usage.
+Service ports are dynamically assigned; read them from the dashboard rather than hard-coding them. Gateway stays on 5100. Ollama uses 11434 but is not started by the current AppHost; the owner must run it before Agent usage.
 
 The local development machine is Apple Silicon with 8 GB RAM. SQL Server runs as an amd64 container under Rosetta; initial startup can be slow.
-The selected local Ollama model is `qwen2.5:3b`, chosen for that memory budget; the current Agent scaffold does not call it yet.
+The selected local Ollama model is `qwen2.5:3b`, chosen for that memory budget; Agent calls it through OllamaSharp and Microsoft.Extensions.AI; see the [Agent reference](../agent/API.md).
 
 ## Dashboard and operation
 
@@ -92,7 +92,7 @@ Project: `src/Aspire/EventHub.ServiceDefaults`. APIs and Gateway call shared set
 | Unexpected errors | Logs exception details and returns a safe 500 body with trace ID instead of leaking a stack trace                              |
 
 Health polling is excluded from normal server tracing. Health routes are not automatically authenticated. The Gateway does not call shared JWT setup; destination APIs validate tokens.
-`AddEventHubResilience(dependencyName)` is the one opt-in for service clients. Booking's Catalog client uses it now; later Agent clients use the same implementation rather than copying policy code. Values bind from the caller's `Resilience` configuration section and are validated during startup.
+`AddEventHubResilience(dependencyName)` is the one opt-in for service clients. Booking's Catalog client and Agent's Catalog/Booking clients use the same implementation rather than copying policy code. Values bind from the caller's `Resilience` configuration section and are validated during startup.
 
 The default pipeline is ordered outermost to innermost: a 10-second total timeout, up to 3 retries with exponential backoff from 200 ms and jitter, a breaker that opens at 50% failures with at least 5 attempts in 10 seconds, and a 2-second attempt timeout. The breaker remains open for 15 seconds. The 2-second attempt limit must be shorter than the 10-second overall budget so a slow attempt leaves time for a retry; the future 30-second Gateway budget remains outside both. Jitter spreads simultaneous retries, while the breaker stops adding traffic to a dependency that is already failing.
 

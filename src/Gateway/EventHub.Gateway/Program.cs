@@ -3,11 +3,16 @@
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+// YARP route timeouts need this middleware; only the Agent route opts into a 120-second budget.
+builder.Services.AddRequestTimeouts();
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
     .AddServiceDiscoveryDestinationResolver();
 
 var app = builder.Build();
+// Resolve the route first so the timeout middleware can read its configured budget.
+app.UseRouting();
+app.UseRequestTimeouts();
 
 app.Use(async (context, next) =>
 {

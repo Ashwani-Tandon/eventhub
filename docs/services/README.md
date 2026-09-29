@@ -8,7 +8,7 @@ Each includes endpoint behavior, request and response fields, access rules, and 
 | Catalog  | Discover and manage events; protect capacity and seat reservations       | [Catalog API](catalog/API.md)         |
 | Booking  | Purchase tickets, cancel purchases, and report booking history and sales | [Booking API](booking/API.md)         |
 | Identity | Registration, login, signed profiles, user listing, and role management  | [Identity API](identity/API.md)       |
-| Agent    | Authenticated service scaffold; chat and tools are not implemented yet   | [Agent status and APIs](agent/API.md) |
+| Agent    | Read-only local assistant using Catalog and caller-owned Booking facts   | [Agent API](agent/API.md) |
 
 Public URLs use the gateway at `http://localhost:5100`. Identity issues the bearer token used by protected operations.
 Catalog's internal seat APIs are service-to-service operations, not gateway APIs for a browser or attendee.

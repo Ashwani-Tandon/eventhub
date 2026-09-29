@@ -13,5 +13,7 @@ public enum ErrorType
     Forbidden,
     Unauthorized,
     Unavailable,
-    Unprocessable
+    Unprocessable,
+    // A service has no free capacity right now; callers may try again later.
+    RateLimited
 }

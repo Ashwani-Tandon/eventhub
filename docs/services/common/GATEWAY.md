@@ -26,7 +26,7 @@ The Gateway does not issue or validate JWTs; each destination API validates the 
 `/catalog/internal` and every nested path are rejected with 404 before proxying, case-insensitively. Clients must never use the internal service credential through the public gateway.
 Unmatched paths return 404. Matched service responses retain their status and validation/business error body; see the service references for exact messages.
 Proxy connection failures can produce gateway errors such as 502; they are not the same as Booking's controlled 503 when Booking cannot reach Catalog.
-Rate limiting, dedicated proxy timeouts, and business request validation are not currently implemented here.
+The Agent route has a 120-second total timeout and its cluster has a 120-second activity timeout. `AddRequestTimeouts` and `UseRequestTimeouts` enable the route setting; routing runs before timeout middleware. The activity setting prevents YARP's default 100-second idle limit from ending a slow answer early. At the deadline Gateway may return 504 before Agent can deliver its own timeout response. Other routes have no dedicated timeout policy; rate limiting and business request validation remain outside this Gateway step.
 
 ## Operational endpoints and code location
 

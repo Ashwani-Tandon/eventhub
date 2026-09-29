@@ -48,6 +48,7 @@ Unexpected exceptions remain exceptions and are handled by the hosting layer. Bu
 | Conflict      | 409                        |
 | Unprocessable | 422                        |
 | Unavailable   | 503                        |
+| RateLimited   | 429                        |
 
 `Result<T>` success maps to 200 (or 201 for a creation endpoint). A successful result with no payload maps to 204.
 These mappings describe endpoint responses, not APIs hosted by BuildingBlocks itself.
@@ -58,3 +59,5 @@ ServiceDefaults implements the current-user contracts using validated JWT claims
 Domain/Application must not depend on EF Core or concrete HTTP clients. Ports describe needed operations and Infrastructure supplies their implementations.
 
 See [service references](../README.md) for actual validation messages and [Aspire / ServiceDefaults](ASPIRE.md) for authentication, ProblemDetails, health, and telemetry hosting.
+
+Agent uses `ErrorType.RateLimited` when its two active slots and five waiting slots are full. The shared Result mapper translates it to 429 ProblemDetails, so the Application handler remains independent of ASP.NET response types. Agent adds `Retry-After: 5` at its HTTP boundary.

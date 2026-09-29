@@ -1,7 +1,7 @@
 # EventHub — Project Structure
 
 This guide explains where code belongs and why each project exists. Identity, Catalog, and Booking
-have implemented business APIs; the Agent and Angular work remains on the execution board.
+have implemented business APIs; Angular feature screens and the read-only Agent are also implemented. Agent actions and the chat widget remain on the execution board.
 
 For service behavior, endpoints, inputs, and validation/error messages, see the
 [service API references](../README.md). ServiceDefaults supplies shared JWT validation,
@@ -133,14 +133,14 @@ the service that owns the database.
 ### Agent
 
 The Agent has no Domain project because it owns no business entities or database. It currently has
-only hosting/authentication and development health routes; chat and tools remain planned.
-Its future tools must act through the same Catalog and Booking APIs as the logged-in user.
+an authenticated chat use case, three read-only tools, and development health routes.
+Its tools act through the same Catalog and Booking APIs as the logged-in user; action tools and the chat widget remain later steps.
 
 | Project                | Purpose                                                                                                               |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `Agent.Application`    | Scaffold; planned chat use case, tool definitions, conversation contracts, and API ports.                             |
-| `Agent.Infrastructure` | Scaffold; planned Ollama integration and authenticated HTTP clients.                                                  |
-| `Agent.Api`            | Hosting/authentication and development health routes; chat, timeouts, and concurrency limits are not implemented yet. |
+| `Agent.Application`    | Chat command/handler/validator, server instructions, three read tools, conversation contracts, and API ports.                             |
+| `Agent.Infrastructure` | Ollama integration with function invocation, timeout/concurrency limits, and authenticated resilient HTTP clients.                                                  |
+| `Agent.Api`            | Authenticated `/chat`, hosting/composition, retry-hint headers, development health routes, and manual request scripts. |
 
 ## Request flow examples
 

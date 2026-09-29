@@ -54,6 +54,7 @@ public static class ResultHttpExtensions
             ErrorType.Forbidden => StatusCodes.Status403Forbidden,
             ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
             ErrorType.Unavailable => StatusCodes.Status503ServiceUnavailable,
+            ErrorType.RateLimited => StatusCodes.Status429TooManyRequests,
             ErrorType.Unprocessable => StatusCodes.Status422UnprocessableEntity,
             _ => throw new ArgumentOutOfRangeException(nameof(error), error.Type, "Unknown error type.")
         };
