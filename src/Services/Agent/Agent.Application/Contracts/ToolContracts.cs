@@ -1,4 +1,4 @@
-// Describes the small set of event and booking facts the assistant can read.
+// Describes the small set of event and booking facts the assistant uses for reads and confirmed actions.
 // Each service still owns its HTTP contract; these local projections contain only facts needed for answers.
 namespace Agent.Application.Contracts;
 
@@ -16,3 +16,19 @@ public sealed record BookingFacts(int Id, int EventId, string EventTitle, DateTi
 /// <summary>Optional filters passed to Catalog; omitted starting dates use Catalog's upcoming-event rule.</summary>
 public sealed record EventFilters(string? Search, string? Category, string? City,
     decimal? MaxPrice, DateTimeOffset? From, DateTimeOffset? To);
+
+/// <summary>Sales projections mirror Booking's response without referencing its Application assembly.</summary>
+public sealed record SalesFacts(SalesTotals Totals, IReadOnlyList<SalesMonth> RevenueByMonth,
+    IReadOnlyList<EventSalesFacts> TopEvents, IReadOnlyList<SalesStatus> StatusCounts);
+
+/// <summary>Caller-scoped totals; revenue and tickets exclude cancelled purchases.</summary>
+public sealed record SalesTotals(decimal Revenue, int TicketsSold, int Bookings, int Cancelled);
+
+/// <summary>One month of confirmed revenue in INR.</summary>
+public sealed record SalesMonth(string Month, decimal Revenue);
+
+/// <summary>One event's confirmed ticket sales and revenue.</summary>
+public sealed record EventSalesFacts(int EventId, string Title, int Tickets, decimal Revenue);
+
+/// <summary>Number of purchases in one booking state.</summary>
+public sealed record SalesStatus(string Status, int Count);

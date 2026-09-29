@@ -1,5 +1,5 @@
 // Wires the chat use case to Ollama and the two existing service APIs.
-// Only service reads get the shared HTTP retry pipeline; the model client deliberately has no retry handler.
+// Service calls use shared resilience with safe-request checks; the model client has no retry handler.
 using System.Threading.RateLimiting;
 using Agent.Application.Ports;
 using Agent.Application.Tools;
@@ -46,7 +46,7 @@ public static class AgentRegistration
         })
             .UseFunctionInvocation(configure: loop =>
             {
-                // One user may request several reads. Run them serially so request context is not used concurrently.
+                // One user may request reads and actions. Run them serially so request context is not used concurrently.
                 loop.AllowConcurrentInvocation = false;
                 // Prevent a model that keeps requesting tools from looping without producing a final answer.
                 loop.MaximumIterationsPerRequest = 8;

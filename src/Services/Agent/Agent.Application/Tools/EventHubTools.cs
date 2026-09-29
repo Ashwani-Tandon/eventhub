@@ -1,4 +1,4 @@
-// Implements the three read operations that Ollama may request during a conversation.
+// Implements event reads and confirmed booking actions that Ollama may request during a conversation.
 // Descriptions become the tool menu; each method calls a service port and returns compact JSON or a short error.
 using System.ComponentModel;
 using System.Text.Json;
@@ -37,10 +37,10 @@ public sealed class EventHubTools(ICatalogApi catalog, IBookingApi booking, ILog
         }, Json);
     }
 
-    /// <summary>Reads an event by the ID returned by a prior search, instead of asking the model to make up its details.</summary>
-    [Description("Get current facts for a real EventHub event using its numeric ID from SearchEvents.")]
+    /// <summary>Reads an event by the ID supplied by the user or a prior search, instead of asking the model to make up its details.</summary>
+    [Description("Get current facts for a real EventHub event using its numeric ID supplied by the user or SearchEvents.")]
     public async Task<string> GetEventDetails(
-        [Description("Numeric event ID returned by SearchEvents.")] int eventId,
+        [Description("Exact numeric event ID supplied by the user or returned by SearchEvents.")] int eventId,
         CancellationToken cancellationToken = default)
     {
         LogTool(logger, nameof(GetEventDetails), JsonSerializer.Serialize(new { eventId }, Json), null);
@@ -70,13 +70,43 @@ public sealed class EventHubTools(ICatalogApi catalog, IBookingApi booking, ILog
         }, Json);
     }
 
+    /// <summary>Creates one key per invocation; transport retries reuse it, while a new purchase gets a new key.</summary>
+    [Description("Book tickets ONLY after stating the real event title, quantity and total INR and receiving a subsequent user confirmation. Never call to ask for confirmation. Returns the saved booking; never repeat this tool after success or an uncertain outcome.")]
+    public async Task<string> BookTickets(
+        [Description("Real event ID obtained from event tools and confirmed by the user.")] int eventId,
+        [Description("User-confirmed ticket quantity, between 1 and 10.")] int quantity,
+        CancellationToken cancellationToken = default)
+    {
+        var idempotencyKey = Guid.NewGuid().ToString();
+        LogTool(logger, nameof(BookTickets), JsonSerializer.Serialize(new { eventId, quantity, idempotencyKey }, Json), null);
+        return Serialize(await booking.BookAsync(eventId, quantity, idempotencyKey, cancellationToken));
+    }
+
+    /// <summary>Uses the ID of a distinct owned booking; Booking checks ownership and returns its cancellation state.</summary>
+    [Description("Cancel a booking ONLY after fetching GetMyBookings, stating its event title, quantity and total INR and receiving a subsequent user confirmation. If multiple bookings match, ask which booking ID first. Never invent IDs or cancel all matches.")]
+    public async Task<string> CancelBooking(
+        [Description("The specific booking ID from GetMyBookings that the user confirmed for cancellation.")] int bookingId,
+        CancellationToken cancellationToken = default)
+    {
+        LogTool(logger, nameof(CancelBooking), JsonSerializer.Serialize(new { bookingId }, Json), null);
+        return Serialize(await booking.CancelAsync(bookingId, cancellationToken));
+    }
+
+    /// <summary>Gets authorized sales facts; an attendee's request reaches Booking and receives its actual 403.</summary>
+    [Description("Get sales statistics for the signed-in caller. Always call this tool for sales requests: Booking determines permission and scope. Forbidden means explain that the user does not have permission.")]
+    public async Task<string> GetSalesStats(CancellationToken cancellationToken = default)
+    {
+        LogTool(logger, nameof(GetSalesStats), "{}", null);
+        return Serialize(await booking.GetStatsAsync(cancellationToken));
+    }
+
     /// <summary>Keeps tool failures readable while retaining the service's validation detail when filters are invalid.</summary>
     private static string Serialize<T>(Result<T> result)
     {
         if (result.IsSuccess) return JsonSerializer.Serialize(result.Value, Json);
         return result.Error!.Type switch
         {
-            ErrorType.Forbidden => "You don't have permission",
+            ErrorType.Forbidden => "Forbidden: you don't have permission",
             ErrorType.Unauthorized => "Please sign in again",
             ErrorType.NotFound => "Not found",
             _ => result.Error.Message

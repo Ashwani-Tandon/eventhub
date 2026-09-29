@@ -1,4 +1,4 @@
-// Reads JSON from a service after its shared retry/timeout pipeline has run.
+// Sends service requests and reads JSON after the shared retry/timeout pipeline has run.
 // Expected outages and HTTP rejections become Results, allowing tools to explain failures instead of crashing chat.
 using System.Net;
 using System.Net.Http.Json;
@@ -18,10 +18,18 @@ internal static class ServiceReader
     public static async Task<Result<T>> ReadAsync<T>(HttpClient client, string path, string serviceName,
         ILogger logger, CancellationToken cancellationToken)
     {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        return await SendAsync<T>(client, request, serviceName, logger, cancellationToken);
+    }
+
+    /// <summary>Uses the same failure translation for reads and actions; the caller owns the request and its stable key.</summary>
+    public static async Task<Result<T>> SendAsync<T>(HttpClient client, HttpRequestMessage request, string serviceName,
+        ILogger logger, CancellationToken cancellationToken)
+    {
         var unavailable = Error.Unavailable($"Agent.{serviceName}Unavailable", $"{serviceName} is temporarily unavailable");
         try
         {
-            using var response = await client.GetAsync(path, cancellationToken);
+            using var response = await client.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 // Preserve permission and missing-record outcomes. Retried 5xx/429 failures mean the dependency is unavailable.
@@ -30,7 +38,9 @@ internal static class ServiceReader
                     HttpStatusCode.NotFound => Error.NotFound("Agent.NotFound", "Not found"),
                     HttpStatusCode.Forbidden => Error.Forbidden("Agent.Forbidden", "You don't have permission"),
                     HttpStatusCode.Unauthorized => Error.Unauthorized("Agent.Unauthorized", "Please sign in again"),
-                    HttpStatusCode.BadRequest => Error.Validation("Agent.InvalidFilters", "Invalid event filters. Check the category, price and date range."),
+                    HttpStatusCode.BadRequest => Error.Validation("Agent.InvalidInput", "Invalid input. Check event ID, quantity (1 to 10), booking status, category, price and date range."),
+                    HttpStatusCode.Conflict => Error.Conflict("Agent.NotEnoughSeats", "Not enough seats"),
+                    HttpStatusCode.UnprocessableEntity => Error.Unprocessable("Agent.PaymentFailed", "Payment failed"),
                     _ => unavailable
                 };
                 return Result<T>.Failure(error);

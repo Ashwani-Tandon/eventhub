@@ -11,6 +11,8 @@ using EventHub.BuildingBlocks.Results;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OllamaSharp;
+using OllamaSharp.Models;
 using OllamaSharp.Models.Exceptions;
 namespace Agent.Infrastructure;
 
@@ -50,8 +52,13 @@ public sealed class OllamaChatClient(IChatClient client, EventHubTools tools, Co
                 // Bound answer length on the small local model; long lists should become concise summaries.
                 MaxOutputTokens = 512,
                 // Bind only these named methods, not every method discovered by reflection. Tools belong to this request's user.
-                Tools = [AIFunctionFactory.Create(tools.SearchEvents), AIFunctionFactory.Create(tools.GetEventDetails), AIFunctionFactory.Create(tools.GetMyBookings)]
+                Tools = [AIFunctionFactory.Create(tools.SearchEvents), AIFunctionFactory.Create(tools.GetEventDetails), AIFunctionFactory.Create(tools.GetMyBookings),
+                    AIFunctionFactory.Create(tools.BookTickets), AIFunctionFactory.Create(tools.CancelBooking),
+                    AIFunctionFactory.Create(tools.GetSalesStats)]
             };
+            // Six tool schemas plus confirmation history need more space than Ollama's default 4096-token window.
+            // This is temporary conversation memory, not training; bounded history and tool pages still matter.
+            chatOptions.AddOllamaOption(OllamaOption.NumCtx, 8192);
             // No retry wrapper: function invocation makes follow-up model turns, which are continuation, not retries.
             var response = await client.GetResponseAsync(history, chatOptions, deadline.Token);
             var reply = response.Messages.LastOrDefault(x => x.Role == ChatRole.Assistant)?.Text;

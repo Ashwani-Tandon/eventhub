@@ -1,4 +1,4 @@
-# Exercises the read-only assistant through the gateway with a real demo-user login.
+# Exercises the assistant reads and confirmed actions through the gateway with a real demo-user login.
 # The service receives full history each time; tokens come from the login response and are never committed.
 @baseUrl = http://localhost:5100
 
@@ -67,3 +67,51 @@ Content-Type: application/json
 ### Stop Ollama locally, repeat a question → 503 Agent.Offline + Retry-After: 5; restart Ollama afterwards
 # For the capacity experiment run: python3 src/Services/Agent/Agent.Api/parallel-chat.py
 # It sends eight real chats simultaneously: two run, five wait, and at least one receives 429.
+
+### Step-10: propose a purchase; must ask for confirmation without creating a booking
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"messages":[{"role":"user","content":"Book 2 tickets for event ID 2."}]}
+
+### Confirm with full history: replace the assistant content with the actual proposal above
+# Inspect GET /booking/bookings/mine before and after: exactly one new booking should appear.
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"messages":[{"role":"user","content":"Book 2 tickets for event ID 2."},{"role":"assistant","content":"Book 2 tickets for Cloud Summit 2 at ₹3650 each, total ₹7300? Please confirm."},{"role":"user","content":"Yes, I confirm."}]}
+
+### Attendee stats must call Booking and explain its 403
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"messages":[{"role":"user","content":"Show my sales statistics."}]}
+
+### Organizer login
+# @name organizerLogin
+POST {{baseUrl}}/identity/auth/login
+Content-Type: application/json
+
+{"email":"organizer@demo.com","password":"Demo@123"}
+
+### Organizer stats: compare with the next raw API response
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{organizerLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"messages":[{"role":"user","content":"Show my sales totals: revenue, tickets sold, bookings and cancelled bookings."}]}
+
+### Authoritative organizer sales
+GET {{baseUrl}}/booking/bookings/stats
+Authorization: Bearer {{organizerLogin.response.body.$.accessToken}}
+
+### Cancel by event name: choose the booking ID if several match, then confirm in a subsequent turn
+# Send full user/assistant history with the next confirmation, as in the booking example.
+POST {{baseUrl}}/agent/chat
+Authorization: Bearer {{attendeeLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{"messages":[{"role":"user","content":"Cancel my booking for Cloud Summit 2."}]}

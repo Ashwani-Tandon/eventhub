@@ -1,4 +1,4 @@
-// Composes the authenticated read-only assistant with its mediator, service tools and local Ollama model.
+// Composes the authenticated assistant with its mediator, service tools and local Ollama model.
 // The Agent owns no database; all event and booking facts arrive through the existing APIs.
 using Agent.Api;
 using Agent.Application.Features.SendChatMessage;
